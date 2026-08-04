@@ -1,0 +1,7 @@
+@import "tailwindcss";
+
+@theme {
+  /* Earthy green/gold palette reflecting the agricultural context */
+  --color-brand-green: #2F6B3C;
+  --color-brand-gold: #D9A441;
+}
