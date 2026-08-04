@@ -1,3 +1,10 @@
+export interface Paginated<T> {
+  count: number;
+  next: string | null;
+  previous: string | null;
+  results: T[];
+}
+
 export type UserRole = "farmer" | "dealer" | "buyer" | "admin";
 
 export interface User {
@@ -34,6 +41,14 @@ export interface EquipmentBooking {
   status: "requested" | "confirmed" | "in_progress" | "completed" | "cancelled";
   total_cost_ghs: string | null;
   requested_via: "app" | "ussd" | "voice";
+}
+
+export interface Order {
+  id: number;
+  listing: number;
+  buyer: number;
+  agreed_price_ghs: string;
+  status: "pending" | "accepted" | "paid" | "delivered" | "cancelled";
 }
 
 export interface ProduceListing {

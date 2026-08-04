@@ -1,13 +1,33 @@
-from rest_framework import viewsets
-from rest_framework.permissions import IsAuthenticated
+from rest_framework import generics, viewsets
+from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.response import Response
+from rest_framework.views import APIView
 
 from .models import BuyerProfile, DealerProfile, FarmerProfile, User
 from .serializers import (
     BuyerProfileSerializer,
     DealerProfileSerializer,
     FarmerProfileSerializer,
+    RegisterSerializer,
     UserSerializer,
 )
+
+
+class RegisterView(generics.CreateAPIView):
+    """Public sign-up endpoint. Anyone can create an account with a role (farmer/dealer/buyer)."""
+
+    queryset = User.objects.all()
+    serializer_class = RegisterSerializer
+    permission_classes = [AllowAny]
+
+
+class MeView(APIView):
+    """Returns the authenticated user's own profile — used by clients to drive role-based routing."""
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        return Response(UserSerializer(request.user).data)
 
 
 class UserViewSet(viewsets.ModelViewSet):
