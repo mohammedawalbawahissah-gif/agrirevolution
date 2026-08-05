@@ -1,16 +1,188 @@
-import { View, Text, StyleSheet } from "react-native";
+import { useState } from "react";
+import {
+  View,
+  Text,
+  StyleSheet,
+  FlatList,
+  RefreshControl,
+  TouchableOpacity,
+  Modal,
+  TextInput,
+  ActivityIndicator,
+} from "react-native";
+import { useAuth } from "../context/AuthContext";
+import { useFetch } from "../hooks/useFetch";
+import { apiClient } from "../api/client";
+import type { Paginated, ProduceListing } from "../types";
 
 export default function MarketplaceScreen() {
+  const { user } = useAuth();
+  const {
+    data: listings,
+    isLoading,
+    refetch,
+  } = useFetch<Paginated<ProduceListing>>(
+    user ? `/marketplace/listings/?farmer=${user.id}` : null,
+    [user?.id]
+  );
+
+  const [modalVisible, setModalVisible] = useState(false);
+  const [crop, setCrop] = useState("");
+  const [quantity, setQuantity] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState("");
+
+  async function handleAddListing() {
+    if (!user) return;
+    setError("");
+    setIsSubmitting(true);
+    try {
+      await apiClient.post("/marketplace/listings/", {
+        farmer: user.id,
+        crop,
+        quantity_kg: parseFloat(quantity),
+        listed_via: "app",
+      });
+      setCrop("");
+      setQuantity("");
+      setModalVisible(false);
+      refetch();
+    } catch {
+      setError("Could not list produce. Check the details and try again.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Marketplace</Text>
-      <Text style={styles.subtitle}>Screen scaffold — build out Marketplace flow here.</Text>
+      <View style={styles.header}>
+        <Text style={styles.title}>Marketplace</Text>
+        <Text style={styles.subtitle}>Sell your produce with AI-graded fair pricing</Text>
+      </View>
+
+      <FlatList
+        contentContainerStyle={styles.list}
+        data={listings?.results ?? []}
+        keyExtractor={(item) => String(item.id)}
+        refreshControl={<RefreshControl refreshing={isLoading} onRefresh={refetch} />}
+        renderItem={({ item }) => (
+          <View style={styles.card}>
+            <View style={styles.cardHeader}>
+              <Text style={styles.cardCrop}>
+                {item.quantity_kg}kg {item.crop}
+              </Text>
+              <Text style={styles.cardStatus}>{item.status}</Text>
+            </View>
+            <Text style={styles.cardGrade}>
+              Grade: {item.ai_grade === "ungraded" ? "Pending AI review" : item.ai_grade}
+            </Text>
+            {item.fair_price_band_low_ghs && item.fair_price_band_high_ghs && (
+              <Text style={styles.cardPrice}>
+                Fair price: GHS {item.fair_price_band_low_ghs} – {item.fair_price_band_high_ghs}
+              </Text>
+            )}
+          </View>
+        )}
+        ListEmptyComponent={
+          !isLoading ? (
+            <View style={styles.empty}>
+              <Text style={styles.emptyText}>No produce listed yet. Tap below to list your first sale.</Text>
+            </View>
+          ) : null
+        }
+      />
+
+      <TouchableOpacity style={styles.fab} onPress={() => setModalVisible(true)}>
+        <Text style={styles.fabText}>+ List Produce</Text>
+      </TouchableOpacity>
+
+      <Modal visible={modalVisible} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>List Produce for Sale</Text>
+            <TextInput style={styles.input} placeholder="Crop (e.g. Maize)" value={crop} onChangeText={setCrop} />
+            <TextInput
+              style={styles.input}
+              placeholder="Quantity (kg)"
+              keyboardType="decimal-pad"
+              value={quantity}
+              onChangeText={setQuantity}
+            />
+            {error ? <Text style={styles.error}>{error}</Text> : null}
+            <TouchableOpacity style={styles.submitButton} onPress={handleAddListing} disabled={isSubmitting}>
+              {isSubmitting ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.submitButtonText}>List Produce</Text>
+              )}
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => setModalVisible(false)}>
+              <Text style={styles.cancelText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, padding: 20, paddingTop: 60 },
-  title: { fontSize: 24, fontWeight: "700", marginBottom: 8 },
-  subtitle: { fontSize: 14, color: "#666" },
+  container: { flex: 1, backgroundColor: "#F9FAFB" },
+  header: { paddingTop: 60, paddingHorizontal: 20, paddingBottom: 16 },
+  title: { fontSize: 24, fontWeight: "700" },
+  subtitle: { fontSize: 13, color: "#6B7280", marginTop: 4 },
+  list: { paddingHorizontal: 20, paddingBottom: 100 },
+  card: {
+    backgroundColor: "#fff",
+    borderRadius: 10,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: "#E5E7EB",
+  },
+  cardHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  cardCrop: { fontSize: 16, fontWeight: "600" },
+  cardStatus: {
+    fontSize: 11,
+    fontWeight: "600",
+    color: "#374151",
+    backgroundColor: "#F3F4F6",
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 999,
+    textTransform: "capitalize",
+  },
+  cardGrade: { fontSize: 13, color: "#6B7280", marginTop: 6 },
+  cardPrice: { fontSize: 13, fontWeight: "600", color: "#2F6B3C", marginTop: 4 },
+  empty: { paddingTop: 60, paddingHorizontal: 12 },
+  emptyText: { textAlign: "center", color: "#9CA3AF", fontSize: 14, lineHeight: 20 },
+  fab: {
+    position: "absolute",
+    bottom: 24,
+    left: 20,
+    right: 20,
+    backgroundColor: "#2F6B3C",
+    borderRadius: 10,
+    paddingVertical: 14,
+    alignItems: "center",
+  },
+  fabText: { color: "#fff", fontWeight: "700", fontSize: 15 },
+  modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.4)", justifyContent: "flex-end" },
+  modalContent: { backgroundColor: "#fff", borderTopLeftRadius: 16, borderTopRightRadius: 16, padding: 24 },
+  modalTitle: { fontSize: 18, fontWeight: "700", marginBottom: 16 },
+  input: {
+    backgroundColor: "#F9FAFB",
+    borderWidth: 1,
+    borderColor: "#D1D5DB",
+    borderRadius: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    marginBottom: 12,
+    fontSize: 15,
+  },
+  error: { color: "#DC2626", fontSize: 13, marginBottom: 8 },
+  submitButton: { backgroundColor: "#2F6B3C", borderRadius: 8, paddingVertical: 14, alignItems: "center" },
+  submitButtonText: { color: "#fff", fontWeight: "600", fontSize: 15 },
+  cancelText: { textAlign: "center", color: "#6B7280", marginTop: 12, fontSize: 14 },
 });
