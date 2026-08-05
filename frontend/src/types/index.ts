@@ -43,6 +43,26 @@ export interface EquipmentBooking {
   requested_via: "app" | "ussd" | "voice";
 }
 
+export interface Transaction {
+  id: number;
+  user: number;
+  purpose: "equipment_booking" | "produce_sale";
+  channel: "mtn_momo" | "vodafone_cash" | "airteltigo" | "card";
+  amount_ghs: string;
+  status: "pending" | "success" | "failed";
+  provider_reference: string;
+  created_at: string;
+}
+
+export interface AdminStats {
+  users: { farmer: number; dealer: number; buyer: number; admin: number; total: number };
+  equipment: { total: number; available: number };
+  bookings: { total: number; by_status: Record<string, number> };
+  listings: { total: number; by_status: Record<string, number>; by_grade: Record<string, number> };
+  orders: { total: number; by_status: Record<string, number> };
+  transactions: { total: number; total_amount_ghs: string };
+}
+
 export interface Order {
   id: number;
   listing: number;

@@ -2,7 +2,10 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
-import AdminDashboard from "./portals/admin/Dashboard";
+import AdminLayout from "./portals/admin/AdminLayout";
+import AdminOverview from "./portals/admin/Overview";
+import AdminUsers from "./portals/admin/Users";
+import AdminEquipment from "./portals/admin/Equipment";
 import DealerDashboard from "./portals/dealer/Dashboard";
 import BuyerDashboard from "./portals/buyer/Dashboard";
 import FarmerDashboard from "./portals/farmer/Dashboard";
@@ -21,13 +24,17 @@ function AppRoutes() {
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
       <Route
-        path="/admin/*"
+        path="/admin"
         element={
           <ProtectedRoute allowedRoles={["admin"]}>
-            <AdminDashboard />
+            <AdminLayout />
           </ProtectedRoute>
         }
-      />
+      >
+        <Route index element={<AdminOverview />} />
+        <Route path="users" element={<AdminUsers />} />
+        <Route path="equipment" element={<AdminEquipment />} />
+      </Route>
       <Route
         path="/dealer/*"
         element={

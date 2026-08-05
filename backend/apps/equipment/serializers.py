@@ -10,7 +10,9 @@ class EquipmentSerializer(serializers.ModelSerializer):
             "id", "dealer", "name", "category", "rate_per_acre_ghs",
             "is_available", "description", "created_at",
         ]
-        read_only_fields = ["created_at"]
+        # dealer is set server-side from the authenticated user (see perform_create),
+        # never trusted from client input.
+        read_only_fields = ["dealer", "created_at"]
 
 
 class EquipmentBookingSerializer(serializers.ModelSerializer):
@@ -20,7 +22,8 @@ class EquipmentBookingSerializer(serializers.ModelSerializer):
             "id", "farmer", "equipment", "requested_date", "acreage", "status",
             "total_cost_ghs", "requested_via", "created_at", "updated_at",
         ]
-        read_only_fields = ["total_cost_ghs", "status", "created_at", "updated_at"]
+        # farmer is set server-side from the authenticated user (see perform_create).
+        read_only_fields = ["farmer", "total_cost_ghs", "status", "created_at", "updated_at"]
 
     def create(self, validated_data):
         equipment = validated_data["equipment"]

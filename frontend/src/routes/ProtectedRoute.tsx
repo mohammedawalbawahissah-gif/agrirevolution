@@ -1,4 +1,5 @@
 import { Navigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 import type { UserRole } from "../types";
 
 interface ProtectedRouteProps {
@@ -6,14 +7,14 @@ interface ProtectedRouteProps {
   allowedRoles: UserRole[];
 }
 
-// Reads role from local storage for now; swap for a proper auth context
-// once the login flow is wired to the backend's JWT endpoints.
+// Reads auth state from context (not localStorage directly), so it re-evaluates
+// and redirects immediately when the user signs out — no reload required.
 export default function ProtectedRoute({ children, allowedRoles }: ProtectedRouteProps) {
-  const token = localStorage.getItem("access_token");
-  const role = localStorage.getItem("user_role") as UserRole | null;
+  const { user, isLoading } = useAuth();
 
-  if (!token) return <Navigate to="/login" replace />;
-  if (role && !allowedRoles.includes(role)) return <Navigate to="/" replace />;
+  if (isLoading) return null;
+  if (!user) return <Navigate to="/login" replace />;
+  if (!allowedRoles.includes(user.role)) return <Navigate to="/" replace />;
 
   return <>{children}</>;
 }

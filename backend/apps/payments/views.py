@@ -8,10 +8,20 @@ from .serializers import TransactionSerializer
 
 
 class TransactionViewSet(viewsets.ModelViewSet):
-    queryset = Transaction.objects.select_related("user").all()
+    queryset = Transaction.objects.all()
     serializer_class = TransactionSerializer
     permission_classes = [IsAuthenticated]
     filterset_fields = ["purpose", "channel", "status", "user"]
+
+    def get_queryset(self):
+        user = self.request.user
+        qs = Transaction.objects.select_related("user")
+        if user.role == "admin" or user.is_staff:
+            return qs
+        return qs.filter(user=user)
+
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
 
     @action(detail=True, methods=["post"], url_path="initiate")
     def initiate(self, request, pk=None):

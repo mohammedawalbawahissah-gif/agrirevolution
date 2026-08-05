@@ -15,6 +15,19 @@ class UserSerializer(serializers.ModelSerializer):
         read_only_fields = ["id", "is_verified", "created_at"]
 
 
+class AdminUserSerializer(serializers.ModelSerializer):
+    """Used only by the admin-only UserViewSet — allows editing role and verification status."""
+
+    class Meta:
+        model = User
+        fields = [
+            "id", "username", "first_name", "last_name", "phone_number",
+            "role", "preferred_access_mode", "community", "district",
+            "preferred_language", "is_verified", "is_active", "created_at",
+        ]
+        read_only_fields = ["id", "created_at"]
+
+
 class FarmerProfileSerializer(serializers.ModelSerializer):
     user = UserSerializer(read_only=True)
 
