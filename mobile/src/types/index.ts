@@ -65,6 +65,14 @@ export interface EquipmentBooking {
   requested_via: "app" | "ussd" | "voice";
 }
 
+export interface Order {
+  id: number;
+  listing: number;
+  buyer: number;
+  agreed_price_ghs: string;
+  status: "pending" | "accepted" | "paid" | "delivered" | "cancelled";
+}
+
 export interface ProduceListing {
   id: number;
   farmer: number;

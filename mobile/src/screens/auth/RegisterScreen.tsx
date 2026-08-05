@@ -10,6 +10,13 @@ import {
 } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { useAuth } from "../../context/AuthContext";
+import type { UserRole } from "../../types";
+
+const ROLES: { value: UserRole; label: string }[] = [
+  { value: "farmer", label: "Farmer" },
+  { value: "dealer", label: "Equipment Dealer" },
+  { value: "buyer", label: "Buyer" },
+];
 
 export default function RegisterScreen() {
   const [form, setForm] = useState({
@@ -18,6 +25,7 @@ export default function RegisterScreen() {
     first_name: "",
     last_name: "",
     phone_number: "",
+    role: "farmer" as UserRole,
     community: "",
     district: "Tamale Metro",
   });
@@ -28,6 +36,10 @@ export default function RegisterScreen() {
 
   function update(key: keyof typeof form, value: string) {
     setForm((f) => ({ ...f, [key]: value }));
+  }
+
+  function updateRole(role: UserRole) {
+    setForm((f) => ({ ...f, role }));
   }
 
   async function handleRegister() {
@@ -47,7 +59,22 @@ export default function RegisterScreen() {
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <Text style={styles.title}>Create your account</Text>
-      <Text style={styles.subtitle}>Join AgriRevolution as a farmer</Text>
+      <Text style={styles.subtitle}>Join AgriRevolution</Text>
+
+      <Text style={styles.label}>I am a...</Text>
+      <View style={styles.roleRow}>
+        {ROLES.map((r) => (
+          <TouchableOpacity
+            key={r.value}
+            style={[styles.roleChip, form.role === r.value && styles.roleChipActive]}
+            onPress={() => updateRole(r.value)}
+          >
+            <Text style={[styles.roleChipText, form.role === r.value && styles.roleChipTextActive]}>
+              {r.label}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
 
       <View style={styles.row}>
         <TextInput
@@ -112,6 +139,19 @@ const styles = StyleSheet.create({
   subtitle: { fontSize: 14, color: "#6B7280", marginBottom: 24 },
   row: { flexDirection: "row", gap: 8 },
   halfInput: { flex: 1 },
+  label: { fontSize: 13, fontWeight: "600", color: "#374151", marginBottom: 8 },
+  roleRow: { flexDirection: "row", gap: 8, marginBottom: 16 },
+  roleChip: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: "#D1D5DB",
+    borderRadius: 8,
+    paddingVertical: 10,
+    alignItems: "center",
+  },
+  roleChipActive: { backgroundColor: "#2F6B3C", borderColor: "#2F6B3C" },
+  roleChipText: { fontSize: 13, fontWeight: "600", color: "#374151" },
+  roleChipTextActive: { color: "#fff" },
   input: {
     backgroundColor: "#fff",
     borderWidth: 1,

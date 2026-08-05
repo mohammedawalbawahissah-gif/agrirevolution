@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import * as SecureStore from "expo-secure-store";
 import { apiClient } from "../api/client";
-import type { User } from "../types";
+import type { User, UserRole } from "../types";
 
 interface AuthContextValue {
   user: User | null;
@@ -17,6 +17,7 @@ interface RegisterPayload {
   first_name: string;
   last_name: string;
   phone_number: string;
+  role: UserRole;
   community: string;
   district: string;
 }
@@ -59,8 +60,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   async function register(payload: RegisterPayload): Promise<void> {
-    // Mobile registration is always the farmer role — dealers/buyers register via the web portal.
-    await apiClient.post("/accounts/register/", { ...payload, role: "farmer" });
+    await apiClient.post("/accounts/register/", payload);
   }
 
   async function logout(): Promise<void> {

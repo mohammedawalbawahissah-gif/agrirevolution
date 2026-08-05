@@ -129,6 +129,13 @@ export default function Register() {
             {isSubmitting ? "Creating account..." : "Create account"}
           </button>
         </form>
+
+        <p className="text-sm text-gray-500 mt-4 text-center">
+          Already have an account?{" "}
+          <a href="/login" className="text-brand-green font-medium">
+            Sign in
+          </a>
+        </p>
       </div>
     </div>
   );
