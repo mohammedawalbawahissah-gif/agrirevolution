@@ -22,6 +22,9 @@ import uuid
 import requests
 from django.conf import settings
 
+from apps.notifications.models import Notification
+from apps.notifications.services import notify
+
 from .models import Transaction
 
 logger = logging.getLogger(__name__)
@@ -118,4 +121,14 @@ def handle_payment_callback(payload: dict) -> Transaction:
 
     transaction.raw_callback_payload = {**transaction.raw_callback_payload, "callback": payload}
     transaction.save(update_fields=["status", "raw_callback_payload", "updated_at"])
+
+    if transaction.status in (Transaction.Status.SUCCESS, Transaction.Status.FAILED):
+        outcome = "successful" if transaction.status == Transaction.Status.SUCCESS else "failed"
+        notify(
+            transaction.user,
+            Notification.Channel.SMS,
+            Notification.Category.PAYMENT_UPDATE,
+            f"Your payment of GHS {transaction.amount_ghs} for {transaction.get_purpose_display()} was {outcome}.",
+        )
+
     return transaction

@@ -10,7 +10,7 @@ class UserSerializer(serializers.ModelSerializer):
         fields = [
             "id", "username", "first_name", "last_name", "phone_number",
             "role", "preferred_access_mode", "community", "district",
-            "preferred_language", "is_verified", "created_at",
+            "preferred_language", "is_verified", "expo_push_token", "created_at",
         ]
         read_only_fields = ["id", "is_verified", "created_at"]
 

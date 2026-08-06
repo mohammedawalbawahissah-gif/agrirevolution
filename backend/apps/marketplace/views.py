@@ -6,6 +6,8 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from apps.accounts.permissions import IsBuyerRole, IsFarmerRole, IsOwnerOrAdmin
+from apps.notifications.models import Notification
+from apps.notifications.services import notify
 
 from .models import Order, ProduceListing
 from .serializers import AdminProduceListingSerializer, OrderSerializer, ProduceListingSerializer
@@ -52,6 +54,13 @@ class ProduceListingViewSet(viewsets.ModelViewSet):
         if listing.photo_url:
             try:
                 grade_produce_listing(listing)
+                notify(
+                    listing.farmer,
+                    Notification.Channel.SMS,
+                    Notification.Category.LISTING_UPDATE,
+                    f"Your {listing.crop} listing was graded {listing.ai_grade}. "
+                    f"Fair price: GHS {listing.fair_price_band_low_ghs}-{listing.fair_price_band_high_ghs}.",
+                )
             except GradingServiceError as exc:
                 # Listing still gets created — grading can be retried via the
                 # /grade/ action below, or an admin can grade manually.
@@ -99,4 +108,22 @@ class OrderViewSet(viewsets.ModelViewSet):
         return [IsAuthenticated()]
 
     def perform_create(self, serializer):
-        serializer.save(buyer=self.request.user)
+        order = serializer.save(buyer=self.request.user)
+        notify(
+            order.listing.farmer,
+            Notification.Channel.SMS,
+            Notification.Category.LISTING_UPDATE,
+            f"New order: {order.buyer.get_full_name() or order.buyer.username} wants to buy your "
+            f"{order.listing.crop} for GHS {order.agreed_price_ghs}.",
+        )
+
+    def perform_update(self, serializer):
+        old_status = self.get_object().status
+        order = serializer.save()
+        if order.status != old_status:
+            notify(
+                order.buyer,
+                Notification.Channel.SMS,
+                Notification.Category.LISTING_UPDATE,
+                f"Your order for {order.listing.crop} is now {order.get_status_display()}.",
+            )

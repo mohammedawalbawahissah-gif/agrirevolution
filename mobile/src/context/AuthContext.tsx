@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import * as SecureStore from "expo-secure-store";
 import { apiClient } from "../api/client";
+import { registerPushNotifications } from "../utils/registerPushNotifications";
 import type { User, UserRole } from "../types";
 
 interface AuthContextValue {
@@ -42,6 +43,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const { data } = await apiClient.get<User>("/accounts/me/");
       setUser(data);
+      registerPushNotifications();
     } catch {
       await SecureStore.deleteItemAsync("access_token");
       await SecureStore.deleteItemAsync("refresh_token");
@@ -57,6 +59,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const meRes = await apiClient.get<User>("/accounts/me/");
     setUser(meRes.data);
+    registerPushNotifications();
     return meRes.data;
   }
 

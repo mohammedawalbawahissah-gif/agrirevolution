@@ -2,6 +2,8 @@ from rest_framework import viewsets
 from rest_framework.permissions import IsAuthenticated
 
 from apps.accounts.permissions import IsDealerRole, IsOwnerOrAdmin
+from apps.notifications.models import Notification
+from apps.notifications.services import notify
 
 from .models import Equipment, EquipmentBooking
 from .serializers import EquipmentBookingSerializer, EquipmentBookingStatusSerializer, EquipmentSerializer
@@ -57,4 +59,22 @@ class EquipmentBookingViewSet(viewsets.ModelViewSet):
         return EquipmentBookingSerializer
 
     def perform_create(self, serializer):
-        serializer.save(farmer=self.request.user)
+        booking = serializer.save(farmer=self.request.user)
+        notify(
+            booking.equipment.dealer,
+            Notification.Channel.SMS,
+            Notification.Category.BOOKING_UPDATE,
+            f"New booking request: {booking.farmer.get_full_name() or booking.farmer.username} "
+            f"wants {booking.equipment.name} for {booking.acreage} acres on {booking.requested_date}.",
+        )
+
+    def perform_update(self, serializer):
+        old_status = self.get_object().status
+        booking = serializer.save()
+        if booking.status != old_status:
+            notify(
+                booking.farmer,
+                Notification.Channel.SMS,
+                Notification.Category.BOOKING_UPDATE,
+                f"Your booking for {booking.equipment.name} is now {booking.get_status_display()}.",
+            )

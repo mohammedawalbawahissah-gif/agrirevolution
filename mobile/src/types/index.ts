@@ -19,6 +19,7 @@ export interface User {
   district: string;
   preferred_language: string;
   is_verified: boolean;
+  expo_push_token?: string;
   created_at: string;
 }
 

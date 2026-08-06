@@ -28,6 +28,9 @@ class User(AbstractUser):
     district = models.CharField(max_length=120, default="Tamale Metro")
     preferred_language = models.CharField(max_length=40, default="English")
     is_verified = models.BooleanField(default=False)
+    expo_push_token = models.CharField(
+        max_length=200, blank=True, help_text="Expo push token registered by the mobile app, if any."
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
