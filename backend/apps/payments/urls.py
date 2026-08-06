@@ -1,8 +1,11 @@
+from django.urls import path
 from rest_framework.routers import DefaultRouter
 
-from .views import TransactionViewSet
+from .views import TransactionViewSet, payment_webhook
 
 router = DefaultRouter()
 router.register("transactions", TransactionViewSet)
 
-urlpatterns = router.urls
+urlpatterns = [
+    path("webhook/", payment_webhook, name="payment-webhook"),
+] + router.urls

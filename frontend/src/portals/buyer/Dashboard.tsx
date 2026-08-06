@@ -20,6 +20,7 @@ export default function BuyerDashboard() {
 
   const [placingOrderFor, setPlacingOrderFor] = useState<number | null>(null);
   const [error, setError] = useState("");
+  const [paymentMessage, setPaymentMessage] = useState<Record<number, string>>({});
 
   async function handlePlaceOrder(listing: ProduceListing) {
     setError("");
@@ -45,6 +46,25 @@ export default function BuyerDashboard() {
     try {
       await apiClient.patch(`/marketplace/orders/${order.id}/`, { status: "cancelled" });
       refetchOrders();
+    } finally {
+      setPlacingOrderFor(null);
+    }
+  }
+
+  async function handlePay(order: Order) {
+    setPlacingOrderFor(order.id);
+    setPaymentMessage((m) => ({ ...m, [order.id]: "" }));
+    try {
+      const { data: txn } = await apiClient.post("/payments/transactions/", {
+        purpose: "produce_sale",
+        channel: "mtn_momo",
+        amount_ghs: order.agreed_price_ghs,
+        produce_order: order.id,
+      });
+      const { data } = await apiClient.post(`/payments/transactions/${txn.id}/initiate/`);
+      setPaymentMessage((m) => ({ ...m, [order.id]: data.detail }));
+    } catch {
+      setPaymentMessage((m) => ({ ...m, [order.id]: "Payment could not be started. Try again." }));
     } finally {
       setPlacingOrderFor(null);
     }
@@ -107,26 +127,40 @@ export default function BuyerDashboard() {
             {myOrders?.results.map((o) => (
               <div
                 key={o.id}
-                className={`px-5 py-3 flex items-center justify-between text-sm ${placingOrderFor === o.id ? "opacity-50" : ""}`}
+                className={`px-5 py-3 text-sm ${placingOrderFor === o.id ? "opacity-50" : ""}`}
               >
-                <span>
-                  Order #{o.id} — GHS {o.agreed_price_ghs}
-                </span>
-                <div className="flex items-center gap-3">
-                  <span className="px-2 py-1 rounded-full bg-gray-100 text-gray-700 text-xs capitalize">
-                    {o.status}
+                <div className="flex items-center justify-between">
+                  <span>
+                    Order #{o.id} — GHS {o.agreed_price_ghs}
                   </span>
-                  {(o.status === "pending" || o.status === "accepted") && (
-                    <button
-                      onClick={() => handleCancelOrder(o)}
-                      disabled={placingOrderFor === o.id}
-                      className="text-gray-400 hover:text-red-600"
-                      title="Cancel order"
-                    >
-                      <XCircle size={16} />
-                    </button>
-                  )}
+                  <div className="flex items-center gap-3">
+                    <span className="px-2 py-1 rounded-full bg-gray-100 text-gray-700 text-xs capitalize">
+                      {o.status}
+                    </span>
+                    {o.status === "accepted" && (
+                      <button
+                        onClick={() => handlePay(o)}
+                        disabled={placingOrderFor === o.id}
+                        className="text-xs font-medium text-brand-green hover:underline disabled:opacity-50"
+                      >
+                        Pay via MoMo
+                      </button>
+                    )}
+                    {(o.status === "pending" || o.status === "accepted") && (
+                      <button
+                        onClick={() => handleCancelOrder(o)}
+                        disabled={placingOrderFor === o.id}
+                        className="text-gray-400 hover:text-red-600"
+                        title="Cancel order"
+                      >
+                        <XCircle size={16} />
+                      </button>
+                    )}
+                  </div>
                 </div>
+                {paymentMessage[o.id] && (
+                  <p className="text-xs text-gray-500 mt-1">{paymentMessage[o.id]}</p>
+                )}
               </div>
             ))}
             {myOrders?.results.length === 0 && (

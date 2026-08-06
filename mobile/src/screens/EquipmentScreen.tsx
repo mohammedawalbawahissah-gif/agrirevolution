@@ -23,7 +23,7 @@ export default function EquipmentScreen() {
     refetch,
   } = useFetch<Paginated<Equipment>>("/equipment/equipment/?is_available=true");
   const { data: bookings, refetch: refetchBookings } = useFetch<Paginated<EquipmentBooking>>(
-    user ? `/equipment/bookings/?farmer=${user.id}` : null,
+    user ? "/equipment/bookings/" : null,
     [user?.id]
   );
 
@@ -33,13 +33,15 @@ export default function EquipmentScreen() {
   const [isBooking, setIsBooking] = useState(false);
   const [error, setError] = useState("");
 
+  const [payingId, setPayingId] = useState<number | null>(null);
+  const [paymentMessage, setPaymentMessage] = useState<Record<number, string>>({});
+
   async function handleBook() {
     if (!selected || !user) return;
     setError("");
     setIsBooking(true);
     try {
       await apiClient.post("/equipment/bookings/", {
-        farmer: user.id,
         equipment: selected.id,
         requested_date: date,
         acreage: parseFloat(acreage),
@@ -53,6 +55,26 @@ export default function EquipmentScreen() {
       setError("Could not submit request. Check the date format (YYYY-MM-DD) and try again.");
     } finally {
       setIsBooking(false);
+    }
+  }
+
+  async function handlePay(booking: EquipmentBooking) {
+    if (!booking.total_cost_ghs) return;
+    setPayingId(booking.id);
+    setPaymentMessage((m) => ({ ...m, [booking.id]: "" }));
+    try {
+      const { data: txn } = await apiClient.post("/payments/transactions/", {
+        purpose: "equipment_booking",
+        channel: "mtn_momo",
+        amount_ghs: booking.total_cost_ghs,
+        equipment_booking: booking.id,
+      });
+      const { data } = await apiClient.post(`/payments/transactions/${txn.id}/initiate/`);
+      setPaymentMessage((m) => ({ ...m, [booking.id]: data.detail }));
+    } catch {
+      setPaymentMessage((m) => ({ ...m, [booking.id]: "Payment could not be started. Try again." }));
+    } finally {
+      setPayingId(null);
     }
   }
 
@@ -91,10 +113,25 @@ export default function EquipmentScreen() {
               <Text style={styles.bookingsTitle}>My Requests</Text>
               {bookings.results.map((b) => (
                 <View key={b.id} style={styles.bookingRow}>
-                  <Text style={styles.bookingText}>
-                    {b.acreage} acres — {b.requested_date}
-                  </Text>
-                  <Text style={styles.bookingStatus}>{b.status.replace("_", " ")}</Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.bookingText}>
+                      {b.acreage} acres — {b.requested_date}
+                      {b.total_cost_ghs ? ` · GHS ${b.total_cost_ghs}` : ""}
+                    </Text>
+                    {paymentMessage[b.id] ? (
+                      <Text style={styles.paymentMessage}>{paymentMessage[b.id]}</Text>
+                    ) : null}
+                  </View>
+                  <View style={{ alignItems: "flex-end" }}>
+                    <Text style={styles.bookingStatus}>{b.status.replace("_", " ")}</Text>
+                    {(b.status === "confirmed" || b.status === "requested") && b.total_cost_ghs && (
+                      <TouchableOpacity onPress={() => handlePay(b)} disabled={payingId === b.id}>
+                        <Text style={styles.payLink}>
+                          {payingId === b.id ? "Starting…" : "Pay via MoMo"}
+                        </Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
                 </View>
               ))}
             </View>
@@ -171,6 +208,8 @@ const styles = StyleSheet.create({
   },
   bookingText: { fontSize: 13 },
   bookingStatus: { fontSize: 12, color: "#6B7280", textTransform: "capitalize" },
+  payLink: { fontSize: 11, color: "#2F6B3C", fontWeight: "600", marginTop: 4 },
+  paymentMessage: { fontSize: 11, color: "#9CA3AF", marginTop: 2 },
   modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.4)", justifyContent: "flex-end" },
   modalContent: { backgroundColor: "#fff", borderTopLeftRadius: 16, borderTopRightRadius: 16, padding: 24 },
   modalTitle: { fontSize: 18, fontWeight: "700", marginBottom: 16 },

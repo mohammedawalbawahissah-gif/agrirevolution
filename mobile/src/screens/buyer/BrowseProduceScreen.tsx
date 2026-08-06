@@ -20,6 +20,7 @@ export default function BrowseProduceScreen() {
 
   const [placingOrderFor, setPlacingOrderFor] = useState<number | null>(null);
   const [error, setError] = useState("");
+  const [paymentMessage, setPaymentMessage] = useState<Record<number, string>>({});
 
   async function handlePlaceOrder(listing: ProduceListing) {
     setError("");
@@ -51,6 +52,25 @@ export default function BrowseProduceScreen() {
     try {
       await apiClient.patch(`/marketplace/orders/${order.id}/`, { status: "cancelled" });
       refetchOrders();
+    } finally {
+      setPlacingOrderFor(null);
+    }
+  }
+
+  async function handlePay(order: Order) {
+    setPlacingOrderFor(order.id);
+    setPaymentMessage((m) => ({ ...m, [order.id]: "" }));
+    try {
+      const { data: txn } = await apiClient.post("/payments/transactions/", {
+        purpose: "produce_sale",
+        channel: "mtn_momo",
+        amount_ghs: order.agreed_price_ghs,
+        produce_order: order.id,
+      });
+      const { data } = await apiClient.post(`/payments/transactions/${txn.id}/initiate/`);
+      setPaymentMessage((m) => ({ ...m, [order.id]: data.detail }));
+    } catch {
+      setPaymentMessage((m) => ({ ...m, [order.id]: "Payment could not be started. Try again." }));
     } finally {
       setPlacingOrderFor(null);
     }
@@ -106,9 +126,19 @@ export default function BrowseProduceScreen() {
             <Text style={styles.ordersTitle}>My Orders</Text>
             {myOrders?.results.map((o) => (
               <View key={o.id} style={styles.orderRow}>
-                <Text style={styles.orderText}>Order #{o.id} — GHS {o.agreed_price_ghs}</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.orderText}>Order #{o.id} — GHS {o.agreed_price_ghs}</Text>
+                  {paymentMessage[o.id] ? (
+                    <Text style={styles.paymentMessage}>{paymentMessage[o.id]}</Text>
+                  ) : null}
+                </View>
                 <View style={styles.orderRight}>
                   <Text style={styles.orderStatus}>{o.status}</Text>
+                  {o.status === "accepted" && (
+                    <TouchableOpacity onPress={() => handlePay(o)} disabled={placingOrderFor === o.id}>
+                      <Text style={styles.payLink}>Pay via MoMo</Text>
+                    </TouchableOpacity>
+                  )}
                   {(o.status === "pending" || o.status === "accepted") && (
                     <TouchableOpacity onPress={() => confirmCancel(o)} disabled={placingOrderFor === o.id}>
                       <Text style={styles.cancelLink}>Cancel</Text>
@@ -163,7 +193,9 @@ const styles = StyleSheet.create({
     borderBottomColor: "#E5E7EB",
   },
   orderText: { fontSize: 13 },
+  paymentMessage: { fontSize: 11, color: "#9CA3AF", marginTop: 2 },
   orderRight: { flexDirection: "row", alignItems: "center", gap: 12 },
   orderStatus: { fontSize: 12, color: "#6B7280", textTransform: "capitalize" },
+  payLink: { fontSize: 12, color: "#2F6B3C", fontWeight: "600" },
   cancelLink: { fontSize: 12, color: "#DC2626", fontWeight: "600" },
 });

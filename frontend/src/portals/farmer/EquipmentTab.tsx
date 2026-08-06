@@ -21,6 +21,9 @@ export default function EquipmentTab() {
   const [isBooking, setIsBooking] = useState(false);
   const [error, setError] = useState("");
 
+  const [payingBookingId, setPayingBookingId] = useState<number | null>(null);
+  const [paymentMessage, setPaymentMessage] = useState<Record<number, string>>({});
+
   async function handleBook() {
     if (!selected) return;
     setError("");
@@ -40,6 +43,26 @@ export default function EquipmentTab() {
       setError("Could not submit request. Check the details and try again.");
     } finally {
       setIsBooking(false);
+    }
+  }
+
+  async function handlePay(booking: EquipmentBooking) {
+    if (!booking.total_cost_ghs) return;
+    setPayingBookingId(booking.id);
+    setPaymentMessage((m) => ({ ...m, [booking.id]: "" }));
+    try {
+      const { data: txn } = await apiClient.post("/payments/transactions/", {
+        purpose: "equipment_booking",
+        channel: "mtn_momo",
+        amount_ghs: booking.total_cost_ghs,
+        equipment_booking: booking.id,
+      });
+      const { data } = await apiClient.post(`/payments/transactions/${txn.id}/initiate/`);
+      setPaymentMessage((m) => ({ ...m, [booking.id]: data.detail }));
+    } catch {
+      setPaymentMessage((m) => ({ ...m, [booking.id]: "Payment could not be started. Try again." }));
+    } finally {
+      setPayingBookingId(null);
     }
   }
 
@@ -112,13 +135,30 @@ export default function EquipmentTab() {
         <h3 className="font-semibold mb-3">My Requests</h3>
         <div className="bg-white rounded-lg shadow-sm border border-gray-100 divide-y">
           {bookings?.results.map((b) => (
-            <div key={b.id} className="px-5 py-3 flex items-center justify-between text-sm">
-              <span>
-                {b.acreage} acres — {b.requested_date}
-              </span>
-              <span className="px-2 py-1 rounded-full bg-gray-100 text-gray-700 text-xs capitalize">
-                {b.status.replace("_", " ")}
-              </span>
+            <div key={b.id} className="px-5 py-3 text-sm">
+              <div className="flex items-center justify-between">
+                <span>
+                  {b.acreage} acres — {b.requested_date}
+                  {b.total_cost_ghs && <span className="text-gray-400"> · GHS {b.total_cost_ghs}</span>}
+                </span>
+                <div className="flex items-center gap-2">
+                  <span className="px-2 py-1 rounded-full bg-gray-100 text-gray-700 text-xs capitalize">
+                    {b.status.replace("_", " ")}
+                  </span>
+                  {(b.status === "confirmed" || b.status === "requested") && b.total_cost_ghs && (
+                    <button
+                      onClick={() => handlePay(b)}
+                      disabled={payingBookingId === b.id}
+                      className="text-xs font-medium text-brand-green hover:underline disabled:opacity-50"
+                    >
+                      {payingBookingId === b.id ? "Starting…" : "Pay via MoMo"}
+                    </button>
+                  )}
+                </div>
+              </div>
+              {paymentMessage[b.id] && (
+                <p className="text-xs text-gray-500 mt-1">{paymentMessage[b.id]}</p>
+              )}
             </div>
           ))}
           {bookings?.results.length === 0 && (
