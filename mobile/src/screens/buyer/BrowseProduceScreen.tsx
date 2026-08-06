@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { View, Text, StyleSheet, FlatList, RefreshControl, TouchableOpacity, ActivityIndicator } from "react-native";
+import { View, Text, StyleSheet, FlatList, RefreshControl, TouchableOpacity, ActivityIndicator, Alert } from "react-native";
 import { useAuth } from "../../context/AuthContext";
 import { useFetch } from "../../hooks/useFetch";
 import { apiClient } from "../../api/client";
@@ -12,8 +12,9 @@ export default function BrowseProduceScreen() {
     isLoading,
     refetch: refetchListings,
   } = useFetch<Paginated<ProduceListing>>("/marketplace/listings/?status=listed");
+  // Backend already scopes /marketplace/orders/ to this buyer's own orders.
   const { data: myOrders, refetch: refetchOrders } = useFetch<Paginated<Order>>(
-    user ? `/marketplace/orders/?buyer=${user.id}` : null,
+    user ? "/marketplace/orders/" : null,
     [user?.id]
   );
 
@@ -21,20 +22,35 @@ export default function BrowseProduceScreen() {
   const [error, setError] = useState("");
 
   async function handlePlaceOrder(listing: ProduceListing) {
-    if (!user) return;
     setError("");
     setPlacingOrderFor(listing.id);
     try {
       const fallbackPrice = listing.fair_price_band_low_ghs ?? "0";
       await apiClient.post("/marketplace/orders/", {
         listing: listing.id,
-        buyer: user.id,
         agreed_price_ghs: fallbackPrice,
       });
       refetchListings();
       refetchOrders();
     } catch {
       setError("Could not place order. Please try again.");
+    } finally {
+      setPlacingOrderFor(null);
+    }
+  }
+
+  function confirmCancel(order: Order) {
+    Alert.alert("Cancel order", "Cancel this order?", [
+      { text: "No", style: "cancel" },
+      { text: "Yes, cancel", style: "destructive", onPress: () => cancelOrder(order) },
+    ]);
+  }
+
+  async function cancelOrder(order: Order) {
+    setPlacingOrderFor(order.id);
+    try {
+      await apiClient.patch(`/marketplace/orders/${order.id}/`, { status: "cancelled" });
+      refetchOrders();
     } finally {
       setPlacingOrderFor(null);
     }
@@ -91,7 +107,14 @@ export default function BrowseProduceScreen() {
             {myOrders?.results.map((o) => (
               <View key={o.id} style={styles.orderRow}>
                 <Text style={styles.orderText}>Order #{o.id} — GHS {o.agreed_price_ghs}</Text>
-                <Text style={styles.orderStatus}>{o.status}</Text>
+                <View style={styles.orderRight}>
+                  <Text style={styles.orderStatus}>{o.status}</Text>
+                  {(o.status === "pending" || o.status === "accepted") && (
+                    <TouchableOpacity onPress={() => confirmCancel(o)} disabled={placingOrderFor === o.id}>
+                      <Text style={styles.cancelLink}>Cancel</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
               </View>
             ))}
             {myOrders?.results.length === 0 && <Text style={styles.emptyText}>No orders placed yet.</Text>}
@@ -134,10 +157,13 @@ const styles = StyleSheet.create({
   orderRow: {
     flexDirection: "row",
     justifyContent: "space-between",
+    alignItems: "center",
     paddingVertical: 8,
     borderBottomWidth: 1,
     borderBottomColor: "#E5E7EB",
   },
   orderText: { fontSize: 13 },
+  orderRight: { flexDirection: "row", alignItems: "center", gap: 12 },
   orderStatus: { fontSize: 12, color: "#6B7280", textTransform: "capitalize" },
+  cancelLink: { fontSize: 12, color: "#DC2626", fontWeight: "600" },
 });

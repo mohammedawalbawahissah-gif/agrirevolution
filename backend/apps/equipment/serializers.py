@@ -23,6 +23,7 @@ class EquipmentBookingSerializer(serializers.ModelSerializer):
             "total_cost_ghs", "requested_via", "created_at", "updated_at",
         ]
         # farmer is set server-side from the authenticated user (see perform_create).
+        # status changes go through EquipmentBookingStatusSerializer (dealer/admin only).
         read_only_fields = ["farmer", "total_cost_ghs", "status", "created_at", "updated_at"]
 
     def create(self, validated_data):
@@ -30,3 +31,15 @@ class EquipmentBookingSerializer(serializers.ModelSerializer):
         acreage = validated_data["acreage"]
         validated_data["total_cost_ghs"] = equipment.rate_per_acre_ghs * acreage
         return super().create(validated_data)
+
+
+class EquipmentBookingStatusSerializer(serializers.ModelSerializer):
+    """Used for dealer/admin requests — the only fields that make sense for them to change."""
+
+    class Meta:
+        model = EquipmentBooking
+        fields = [
+            "id", "farmer", "equipment", "requested_date", "acreage", "status",
+            "total_cost_ghs", "requested_via", "created_at", "updated_at",
+        ]
+        read_only_fields = ["farmer", "equipment", "requested_date", "acreage", "total_cost_ghs", "created_at", "updated_at"]

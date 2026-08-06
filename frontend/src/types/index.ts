@@ -22,6 +22,28 @@ export interface User {
   created_at: string;
 }
 
+export interface WeatherForecast {
+  id: number;
+  community: string;
+  district: string;
+  forecast_date: string;
+  rainfall_mm: string | null;
+  temperature_high_c: string | null;
+  temperature_low_c: string | null;
+  humidity_percent: string | null;
+}
+
+export interface PlantingRecommendation {
+  id: number;
+  farmer: number;
+  crop: string;
+  recommended_action: "plant" | "harvest" | "request_equipment" | "hold";
+  recommended_window_start: string;
+  recommended_window_end: string;
+  ai_rationale: string;
+  confidence_score: string | null;
+}
+
 export interface Equipment {
   id: number;
   dealer: number;

@@ -4,7 +4,7 @@ from rest_framework.permissions import IsAuthenticated
 from apps.accounts.permissions import IsDealerRole, IsOwnerOrAdmin
 
 from .models import Equipment, EquipmentBooking
-from .serializers import EquipmentBookingSerializer, EquipmentSerializer
+from .serializers import EquipmentBookingSerializer, EquipmentBookingStatusSerializer, EquipmentSerializer
 
 
 class EquipmentViewSet(viewsets.ModelViewSet):
@@ -49,6 +49,12 @@ class EquipmentBookingViewSet(viewsets.ModelViewSet):
             return qs.filter(equipment__dealer=user)
         # farmers (and any other role) only ever see their own bookings
         return qs.filter(farmer=user)
+
+    def get_serializer_class(self):
+        user = self.request.user
+        if user.is_authenticated and (user.role in ("dealer", "admin") or user.is_staff):
+            return EquipmentBookingStatusSerializer
+        return EquipmentBookingSerializer
 
     def perform_create(self, serializer):
         serializer.save(farmer=self.request.user)

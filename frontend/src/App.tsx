@@ -6,6 +6,10 @@ import AdminLayout from "./portals/admin/AdminLayout";
 import AdminOverview from "./portals/admin/Overview";
 import AdminUsers from "./portals/admin/Users";
 import AdminEquipment from "./portals/admin/Equipment";
+import AdminBookings from "./portals/admin/Bookings";
+import AdminListings from "./portals/admin/Listings";
+import AdminOrders from "./portals/admin/Orders";
+import AdminTransactions from "./portals/admin/Transactions";
 import DealerDashboard from "./portals/dealer/Dashboard";
 import BuyerDashboard from "./portals/buyer/Dashboard";
 import FarmerDashboard from "./portals/farmer/Dashboard";
@@ -34,6 +38,10 @@ function AppRoutes() {
         <Route index element={<AdminOverview />} />
         <Route path="users" element={<AdminUsers />} />
         <Route path="equipment" element={<AdminEquipment />} />
+        <Route path="bookings" element={<AdminBookings />} />
+        <Route path="listings" element={<AdminListings />} />
+        <Route path="orders" element={<AdminOrders />} />
+        <Route path="transactions" element={<AdminTransactions />} />
       </Route>
       <Route
         path="/dealer/*"

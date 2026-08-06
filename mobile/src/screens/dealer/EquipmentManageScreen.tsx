@@ -9,6 +9,7 @@ import {
   Modal,
   TextInput,
   ActivityIndicator,
+  Alert,
 } from "react-native";
 import { useAuth } from "../../context/AuthContext";
 import { useFetch } from "../../hooks/useFetch";
@@ -16,6 +17,13 @@ import { apiClient } from "../../api/client";
 import type { Paginated, Equipment, EquipmentBooking } from "../../types";
 
 const CATEGORIES = ["ploughing", "planting", "harvesting", "spraying", "transport"] as const;
+const BOOKING_STATUSES: EquipmentBooking["status"][] = [
+  "requested",
+  "confirmed",
+  "in_progress",
+  "completed",
+  "cancelled",
+];
 
 export default function EquipmentManageScreen() {
   const { user } = useAuth();
@@ -25,12 +33,11 @@ export default function EquipmentManageScreen() {
     refetch,
   } = useFetch<Paginated<Equipment>>(user ? `/equipment/equipment/?dealer=${user.id}` : null, [user?.id]);
 
-  const equipmentIds = equipment?.results.map((e) => e.id) ?? [];
-  const { data: bookings } = useFetch<Paginated<EquipmentBooking>>(
+  // Backend already scopes /equipment/bookings/ to this dealer's own equipment.
+  const { data: bookings, refetch: refetchBookings } = useFetch<Paginated<EquipmentBooking>>(
     user ? "/equipment/bookings/" : null,
-    [user?.id, equipment?.count]
+    [user?.id]
   );
-  const myBookings = bookings?.results.filter((b) => equipmentIds.includes(b.equipment)) ?? [];
 
   const [modalVisible, setModalVisible] = useState(false);
   const [form, setForm] = useState({
@@ -41,6 +48,7 @@ export default function EquipmentManageScreen() {
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const [busyId, setBusyId] = useState<number | null>(null);
 
   async function handleAddEquipment() {
     if (!user) return;
@@ -50,7 +58,6 @@ export default function EquipmentManageScreen() {
       await apiClient.post("/equipment/equipment/", {
         ...form,
         rate_per_acre_ghs: parseFloat(form.rate_per_acre_ghs),
-        dealer: user.id,
       });
       setForm({ name: "", category: "ploughing", rate_per_acre_ghs: "", description: "" });
       setModalVisible(false);
@@ -59,6 +66,49 @@ export default function EquipmentManageScreen() {
       setError("Could not add equipment. Check the form and try again.");
     } finally {
       setIsSubmitting(false);
+    }
+  }
+
+  async function toggleAvailable(item: Equipment) {
+    setBusyId(item.id);
+    try {
+      await apiClient.patch(`/equipment/equipment/${item.id}/`, { is_available: !item.is_available });
+      refetch();
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  function confirmDelete(item: Equipment) {
+    Alert.alert("Delete equipment", `Delete "${item.name}"? This cannot be undone.`, [
+      { text: "Cancel", style: "cancel" },
+      { text: "Delete", style: "destructive", onPress: () => deleteEquipment(item) },
+    ]);
+  }
+
+  async function deleteEquipment(item: Equipment) {
+    setBusyId(item.id);
+    try {
+      await apiClient.delete(`/equipment/equipment/${item.id}/`);
+      refetch();
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  function cycleBookingStatus(booking: EquipmentBooking) {
+    const idx = BOOKING_STATUSES.indexOf(booking.status);
+    const next = BOOKING_STATUSES[(idx + 1) % BOOKING_STATUSES.length];
+    updateBookingStatus(booking, next);
+  }
+
+  async function updateBookingStatus(booking: EquipmentBooking, status: EquipmentBooking["status"]) {
+    setBusyId(booking.id);
+    try {
+      await apiClient.patch(`/equipment/bookings/${booking.id}/`, { status });
+      refetchBookings();
+    } finally {
+      setBusyId(null);
     }
   }
 
@@ -75,10 +125,22 @@ export default function EquipmentManageScreen() {
         keyExtractor={(item) => String(item.id)}
         refreshControl={<RefreshControl refreshing={isLoading} onRefresh={refetch} />}
         renderItem={({ item }) => (
-          <View style={styles.card}>
-            <Text style={styles.cardName}>{item.name}</Text>
-            <Text style={styles.cardCategory}>{item.category}</Text>
-            <Text style={styles.cardRate}>GHS {item.rate_per_acre_ghs} / acre</Text>
+          <View style={[styles.card, busyId === item.id && styles.cardBusy]}>
+            <View style={styles.cardHeaderRow}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.cardName}>{item.name}</Text>
+                <Text style={styles.cardCategory}>{item.category}</Text>
+                <Text style={styles.cardRate}>GHS {item.rate_per_acre_ghs} / acre</Text>
+              </View>
+              <View style={styles.cardActions}>
+                <TouchableOpacity onPress={() => toggleAvailable(item)} disabled={busyId === item.id}>
+                  <Text style={styles.actionLink}>{item.is_available ? "Pause" : "Activate"}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => confirmDelete(item)} disabled={busyId === item.id}>
+                  <Text style={styles.deleteLink}>Delete</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
           </View>
         )}
         ListEmptyComponent={
@@ -91,15 +153,20 @@ export default function EquipmentManageScreen() {
         ListFooterComponent={
           <View style={styles.bookingsSection}>
             <Text style={styles.bookingsTitle}>Incoming Bookings</Text>
-            {myBookings.map((b) => (
-              <View key={b.id} style={styles.bookingRow}>
+            {bookings?.results.map((b) => (
+              <TouchableOpacity
+                key={b.id}
+                style={styles.bookingRow}
+                onPress={() => cycleBookingStatus(b)}
+                disabled={busyId === b.id}
+              >
                 <Text style={styles.bookingText}>
                   {b.acreage} acres — {b.requested_date}
                 </Text>
-                <Text style={styles.bookingStatus}>{b.status.replace("_", " ")}</Text>
-              </View>
+                <Text style={styles.bookingStatus}>{b.status.replace("_", " ")} ›</Text>
+              </TouchableOpacity>
             ))}
-            {myBookings.length === 0 && <Text style={styles.emptyText}>No bookings yet.</Text>}
+            {bookings?.results.length === 0 && <Text style={styles.emptyText}>No bookings yet.</Text>}
           </View>
         }
       />
@@ -174,6 +241,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#E5E7EB",
   },
+  cardBusy: { opacity: 0.5 },
+  cardHeaderRow: { flexDirection: "row", justifyContent: "space-between" },
+  cardActions: { alignItems: "flex-end", gap: 8 },
+  actionLink: { fontSize: 12, fontWeight: "600", color: "#2F6B3C" },
+  deleteLink: { fontSize: 12, fontWeight: "600", color: "#DC2626" },
   cardName: { fontSize: 16, fontWeight: "600" },
   cardCategory: { fontSize: 13, color: "#6B7280", marginTop: 2, textTransform: "capitalize" },
   cardRate: { fontSize: 14, fontWeight: "600", color: "#2F6B3C", marginTop: 6 },
@@ -189,7 +261,7 @@ const styles = StyleSheet.create({
     borderBottomColor: "#E5E7EB",
   },
   bookingText: { fontSize: 13 },
-  bookingStatus: { fontSize: 12, color: "#6B7280", textTransform: "capitalize" },
+  bookingStatus: { fontSize: 12, color: "#2F6B3C", fontWeight: "600", textTransform: "capitalize" },
   fab: {
     position: "absolute",
     bottom: 24,

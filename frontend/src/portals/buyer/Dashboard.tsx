@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { XCircle } from "lucide-react";
 import { useFetch } from "../../hooks/useFetch";
 import { useAuth } from "../../context/AuthContext";
 import { apiClient } from "../../api/client";
@@ -11,8 +12,9 @@ export default function BuyerDashboard() {
     isLoading,
     refetch: refetchListings,
   } = useFetch<Paginated<ProduceListing>>("/marketplace/listings/?status=listed");
+  // Backend already scopes /marketplace/orders/ to this buyer's own orders.
   const { data: myOrders, refetch: refetchOrders } = useFetch<Paginated<Order>>(
-    user ? `/marketplace/orders/?buyer=${user.id}` : null,
+    user ? "/marketplace/orders/" : null,
     [user?.id]
   );
 
@@ -26,13 +28,23 @@ export default function BuyerDashboard() {
       const fallbackPrice = listing.fair_price_band_low_ghs ?? "0";
       await apiClient.post("/marketplace/orders/", {
         listing: listing.id,
-        buyer: user?.id,
         agreed_price_ghs: fallbackPrice,
       });
       refetchListings();
       refetchOrders();
     } catch {
       setError("Could not place order. Please try again.");
+    } finally {
+      setPlacingOrderFor(null);
+    }
+  }
+
+  async function handleCancelOrder(order: Order) {
+    if (!confirm("Cancel this order?")) return;
+    setPlacingOrderFor(order.id);
+    try {
+      await apiClient.patch(`/marketplace/orders/${order.id}/`, { status: "cancelled" });
+      refetchOrders();
     } finally {
       setPlacingOrderFor(null);
     }
@@ -93,11 +105,28 @@ export default function BuyerDashboard() {
           </div>
           <div className="divide-y">
             {myOrders?.results.map((o) => (
-              <div key={o.id} className="px-5 py-3 flex items-center justify-between text-sm">
-                <span>Order #{o.id} — GHS {o.agreed_price_ghs}</span>
-                <span className="px-2 py-1 rounded-full bg-gray-100 text-gray-700 text-xs capitalize">
-                  {o.status}
+              <div
+                key={o.id}
+                className={`px-5 py-3 flex items-center justify-between text-sm ${placingOrderFor === o.id ? "opacity-50" : ""}`}
+              >
+                <span>
+                  Order #{o.id} — GHS {o.agreed_price_ghs}
                 </span>
+                <div className="flex items-center gap-3">
+                  <span className="px-2 py-1 rounded-full bg-gray-100 text-gray-700 text-xs capitalize">
+                    {o.status}
+                  </span>
+                  {(o.status === "pending" || o.status === "accepted") && (
+                    <button
+                      onClick={() => handleCancelOrder(o)}
+                      disabled={placingOrderFor === o.id}
+                      className="text-gray-400 hover:text-red-600"
+                      title="Cancel order"
+                    >
+                      <XCircle size={16} />
+                    </button>
+                  )}
+                </div>
               </div>
             ))}
             {myOrders?.results.length === 0 && (

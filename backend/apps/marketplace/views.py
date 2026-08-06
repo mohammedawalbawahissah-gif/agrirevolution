@@ -4,7 +4,7 @@ from rest_framework.permissions import IsAuthenticated
 from apps.accounts.permissions import IsBuyerRole, IsFarmerRole, IsOwnerOrAdmin
 
 from .models import Order, ProduceListing
-from .serializers import OrderSerializer, ProduceListingSerializer
+from .serializers import AdminProduceListingSerializer, OrderSerializer, ProduceListingSerializer
 
 
 class ProduceListingViewSet(viewsets.ModelViewSet):
@@ -33,6 +33,12 @@ class ProduceListingViewSet(viewsets.ModelViewSet):
             return qs.filter(farmer=user)
         # buyers, dealers, and admins can browse the full marketplace
         return qs
+
+    def get_serializer_class(self):
+        user = self.request.user
+        if user.is_authenticated and (user.role == "admin" or user.is_staff):
+            return AdminProduceListingSerializer
+        return ProduceListingSerializer
 
     def perform_create(self, serializer):
         serializer.save(farmer=self.request.user)

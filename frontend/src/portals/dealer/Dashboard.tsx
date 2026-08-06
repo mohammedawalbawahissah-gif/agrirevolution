@@ -1,10 +1,18 @@
 import { useState, type FormEvent } from "react";
+import { Trash2, PauseCircle, PlayCircle } from "lucide-react";
 import { useFetch } from "../../hooks/useFetch";
 import { useAuth } from "../../context/AuthContext";
 import { apiClient } from "../../api/client";
 import type { Paginated, Equipment, EquipmentBooking } from "../../types";
 
 const CATEGORIES = ["ploughing", "planting", "harvesting", "spraying", "transport"] as const;
+const BOOKING_STATUSES: EquipmentBooking["status"][] = [
+  "requested",
+  "confirmed",
+  "in_progress",
+  "completed",
+  "cancelled",
+];
 
 export default function DealerDashboard() {
   const { user, logout } = useAuth();
@@ -14,12 +22,11 @@ export default function DealerDashboard() {
     refetch: refetchEquipment,
   } = useFetch<Paginated<Equipment>>(user ? `/equipment/equipment/?dealer=${user.id}` : null, [user?.id]);
 
-  const equipmentIds = equipment?.results.map((e) => e.id) ?? [];
-  const { data: bookings } = useFetch<Paginated<EquipmentBooking>>(
+  // Backend already scopes /equipment/bookings/ to this dealer's own equipment.
+  const { data: bookings, refetch: refetchBookings } = useFetch<Paginated<EquipmentBooking>>(
     user ? "/equipment/bookings/" : null,
-    [user?.id, equipment?.count]
+    [user?.id]
   );
-  const myBookings = bookings?.results.filter((b) => equipmentIds.includes(b.equipment)) ?? [];
 
   const [form, setForm] = useState({
     name: "",
@@ -29,6 +36,7 @@ export default function DealerDashboard() {
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const [busyId, setBusyId] = useState<number | null>(null);
 
   async function handleAddEquipment(e: FormEvent) {
     e.preventDefault();
@@ -38,7 +46,6 @@ export default function DealerDashboard() {
       await apiClient.post("/equipment/equipment/", {
         ...form,
         rate_per_acre_ghs: parseFloat(form.rate_per_acre_ghs),
-        dealer: user?.id,
       });
       setForm({ name: "", category: "ploughing", rate_per_acre_ghs: "", description: "" });
       refetchEquipment();
@@ -46,6 +53,37 @@ export default function DealerDashboard() {
       setError("Could not add equipment. Check the form and try again.");
     } finally {
       setIsSubmitting(false);
+    }
+  }
+
+  async function toggleAvailable(item: Equipment) {
+    setBusyId(item.id);
+    try {
+      await apiClient.patch(`/equipment/equipment/${item.id}/`, { is_available: !item.is_available });
+      refetchEquipment();
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  async function deleteEquipment(item: Equipment) {
+    if (!confirm(`Delete "${item.name}"? This cannot be undone.`)) return;
+    setBusyId(item.id);
+    try {
+      await apiClient.delete(`/equipment/equipment/${item.id}/`);
+      refetchEquipment();
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  async function updateBookingStatus(booking: EquipmentBooking, status: EquipmentBooking["status"]) {
+    setBusyId(booking.id);
+    try {
+      await apiClient.patch(`/equipment/bookings/${booking.id}/`, { status });
+      refetchBookings();
+    } finally {
+      setBusyId(null);
     }
   }
 
@@ -126,11 +164,38 @@ export default function DealerDashboard() {
           <div className="divide-y">
             {equipmentLoading && <p className="px-5 py-4 text-sm text-gray-400">Loading...</p>}
             {equipment?.results.map((eq) => (
-              <div key={eq.id} className="px-5 py-3 flex items-center justify-between text-sm">
-                <span>
-                  {eq.name} <span className="text-gray-400">— {eq.category}</span>
-                </span>
-                <span className="font-medium">GHS {eq.rate_per_acre_ghs}/acre</span>
+              <div
+                key={eq.id}
+                className={`px-5 py-3 flex items-center justify-between text-sm ${busyId === eq.id ? "opacity-50" : ""}`}
+              >
+                <div>
+                  <span className="font-medium">{eq.name}</span>{" "}
+                  <span className="text-gray-400">— {eq.category}</span>
+                  <p className="text-gray-500 text-xs mt-0.5">
+                    GHS {eq.rate_per_acre_ghs}/acre ·{" "}
+                    <span className={eq.is_available ? "text-brand-green" : "text-gray-400"}>
+                      {eq.is_available ? "Available" : "Paused"}
+                    </span>
+                  </p>
+                </div>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => toggleAvailable(eq)}
+                    disabled={busyId === eq.id}
+                    className="text-gray-400 hover:text-brand-green"
+                    title={eq.is_available ? "Pause listing" : "Reactivate listing"}
+                  >
+                    {eq.is_available ? <PauseCircle size={18} /> : <PlayCircle size={18} />}
+                  </button>
+                  <button
+                    onClick={() => deleteEquipment(eq)}
+                    disabled={busyId === eq.id}
+                    className="text-gray-400 hover:text-red-600"
+                    title="Delete"
+                  >
+                    <Trash2 size={18} />
+                  </button>
+                </div>
               </div>
             ))}
             {equipment?.results.length === 0 && (
@@ -144,15 +209,29 @@ export default function DealerDashboard() {
             <h2 className="font-semibold">Incoming Bookings</h2>
           </div>
           <div className="divide-y">
-            {myBookings.map((b) => (
-              <div key={b.id} className="px-5 py-3 flex items-center justify-between text-sm">
-                <span>Booking #{b.id} — {b.acreage} acres on {b.requested_date}</span>
-                <span className="px-2 py-1 rounded-full bg-gray-100 text-gray-700 text-xs capitalize">
-                  {b.status.replace("_", " ")}
+            {bookings?.results.map((b) => (
+              <div
+                key={b.id}
+                className={`px-5 py-3 flex items-center justify-between text-sm ${busyId === b.id ? "opacity-50" : ""}`}
+              >
+                <span>
+                  Booking #{b.id} — {b.acreage} acres on {b.requested_date}
                 </span>
+                <select
+                  value={b.status}
+                  disabled={busyId === b.id}
+                  onChange={(e) => updateBookingStatus(b, e.target.value as EquipmentBooking["status"])}
+                  className="text-xs font-medium px-2 py-1 rounded-full bg-gray-100 text-gray-700 border-0 capitalize"
+                >
+                  {BOOKING_STATUSES.map((s) => (
+                    <option key={s} value={s}>
+                      {s.replace("_", " ")}
+                    </option>
+                  ))}
+                </select>
               </div>
             ))}
-            {myBookings.length === 0 && (
+            {bookings?.results.length === 0 && (
               <p className="px-5 py-4 text-sm text-gray-400">No bookings yet.</p>
             )}
           </div>
