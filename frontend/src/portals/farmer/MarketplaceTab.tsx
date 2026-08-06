@@ -15,6 +15,7 @@ export default function MarketplaceTab() {
   const [formOpen, setFormOpen] = useState(false);
   const [crop, setCrop] = useState("");
   const [quantity, setQuantity] = useState("");
+  const [photoUrl, setPhotoUrl] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
 
@@ -25,10 +26,12 @@ export default function MarketplaceTab() {
       await apiClient.post("/marketplace/listings/", {
         crop,
         quantity_kg: parseFloat(quantity),
+        photo_url: photoUrl || undefined,
         listed_via: "app",
       });
       setCrop("");
       setQuantity("");
+      setPhotoUrl("");
       setFormOpen(false);
       refetch();
     } catch {
@@ -76,6 +79,17 @@ export default function MarketplaceTab() {
                 className="w-full border border-gray-300 rounded-md px-3 py-2"
               />
             </div>
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Photo URL <span className="text-gray-400 font-normal">(optional — enables AI grading)</span>
+              </label>
+              <input
+                value={photoUrl}
+                onChange={(e) => setPhotoUrl(e.target.value)}
+                placeholder="https://..."
+                className="w-full border border-gray-300 rounded-md px-3 py-2"
+              />
+            </div>
           </div>
           {error && <p className="text-sm text-red-600 mt-2">{error}</p>}
           <div className="flex gap-3 mt-4">
@@ -107,6 +121,9 @@ export default function MarketplaceTab() {
                   ? ` · GHS ${l.fair_price_band_low_ghs}–${l.fair_price_band_high_ghs}`
                   : ""}
               </p>
+              {l.ai_grading_notes && (
+                <p className="text-gray-400 text-xs mt-1 max-w-md">{l.ai_grading_notes}</p>
+              )}
             </div>
             <span className="px-2 py-1 rounded-full bg-gray-100 text-gray-700 text-xs capitalize">
               {l.status}

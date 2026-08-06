@@ -1,10 +1,17 @@
+import logging
+
 from rest_framework import viewsets
+from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
 
 from apps.accounts.permissions import IsBuyerRole, IsFarmerRole, IsOwnerOrAdmin
 
 from .models import Order, ProduceListing
 from .serializers import AdminProduceListingSerializer, OrderSerializer, ProduceListingSerializer
+from .services import GradingServiceError, grade_produce_listing
+
+logger = logging.getLogger(__name__)
 
 
 class ProduceListingViewSet(viewsets.ModelViewSet):
@@ -41,7 +48,27 @@ class ProduceListingViewSet(viewsets.ModelViewSet):
         return ProduceListingSerializer
 
     def perform_create(self, serializer):
-        serializer.save(farmer=self.request.user)
+        listing = serializer.save(farmer=self.request.user)
+        if listing.photo_url:
+            try:
+                grade_produce_listing(listing)
+            except GradingServiceError as exc:
+                # Listing still gets created — grading can be retried via the
+                # /grade/ action below, or an admin can grade manually.
+                logger.warning("Auto-grade on create failed for listing=%s: %s", listing.id, exc)
+
+    @action(detail=True, methods=["post"], url_path="grade")
+    def grade(self, request, pk=None):
+        """Re-run (or run for the first time) AI grading against this listing's photo."""
+        listing = self.get_object()
+        user = request.user
+        if not (user == listing.farmer or user.role == "admin" or user.is_staff):
+            return Response({"detail": "Not permitted to grade this listing."}, status=403)
+        try:
+            grade_produce_listing(listing)
+        except GradingServiceError as exc:
+            return Response({"detail": str(exc)}, status=503)
+        return Response(ProduceListingSerializer(listing).data)
 
 
 class OrderViewSet(viewsets.ModelViewSet):

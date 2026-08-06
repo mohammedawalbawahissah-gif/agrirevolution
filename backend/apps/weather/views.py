@@ -1,8 +1,13 @@
 from rest_framework import viewsets
+from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+
+from apps.accounts.permissions import IsFarmerRole
 
 from .models import PlantingRecommendation, WeatherForecast
 from .serializers import PlantingRecommendationSerializer, WeatherForecastSerializer
+from .services import WeatherServiceError, generate_planting_recommendation
 
 
 class WeatherForecastViewSet(viewsets.ReadOnlyModelViewSet):
@@ -30,3 +35,18 @@ class PlantingRecommendationViewSet(viewsets.ReadOnlyModelViewSet):
         if user.role == "admin" or user.is_staff:
             return qs
         return qs.filter(farmer=user)
+
+    @action(detail=False, methods=["post"], permission_classes=[IsAuthenticated, IsFarmerRole])
+    def generate(self, request):
+        """
+        Farmer-triggered: generate a fresh AI recommendation for a crop.
+        POST body: {"crop": "Maize"}
+        """
+        crop = request.data.get("crop", "").strip()
+        if not crop:
+            return Response({"detail": "crop is required."}, status=400)
+        try:
+            recommendation = generate_planting_recommendation(request.user, crop)
+        except WeatherServiceError as exc:
+            return Response({"detail": str(exc)}, status=503)
+        return Response(PlantingRecommendationSerializer(recommendation).data, status=201)

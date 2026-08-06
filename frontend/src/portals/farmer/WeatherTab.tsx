@@ -1,5 +1,7 @@
+import { useState } from "react";
 import { useAuth } from "../../context/AuthContext";
 import { useFetch } from "../../hooks/useFetch";
+import { apiClient } from "../../api/client";
 import type { Paginated, PlantingRecommendation } from "../../types";
 
 const ACTION_LABELS: Record<PlantingRecommendation["recommended_action"], string> = {
@@ -12,10 +14,29 @@ const ACTION_LABELS: Record<PlantingRecommendation["recommended_action"], string
 export default function WeatherTab() {
   const { user } = useAuth();
   // Backend already scopes this to the logged-in farmer's own recommendations.
-  const { data: recommendations, isLoading } = useFetch<Paginated<PlantingRecommendation>>(
+  const { data: recommendations, isLoading, refetch } = useFetch<Paginated<PlantingRecommendation>>(
     user ? "/weather/recommendations/" : null,
     [user?.id]
   );
+
+  const [crop, setCrop] = useState("");
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [error, setError] = useState("");
+
+  async function handleGenerate() {
+    if (!crop.trim()) return;
+    setError("");
+    setIsGenerating(true);
+    try {
+      await apiClient.post("/weather/recommendations/generate/", { crop: crop.trim() });
+      setCrop("");
+      refetch();
+    } catch {
+      setError("Could not get guidance right now. Please try again in a moment.");
+    } finally {
+      setIsGenerating(false);
+    }
+  }
 
   return (
     <div className="space-y-4">
@@ -24,6 +45,26 @@ export default function WeatherTab() {
         <p className="text-sm text-gray-500 mt-1">
           AI-driven timing for planting, harvest, and equipment requests
         </p>
+      </div>
+
+      <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-5">
+        <label className="block text-sm font-medium text-gray-700 mb-1">Get guidance for a crop</label>
+        <div className="flex gap-3">
+          <input
+            value={crop}
+            onChange={(e) => setCrop(e.target.value)}
+            placeholder="e.g. Maize, Groundnuts, Tomatoes"
+            className="flex-1 border border-gray-300 rounded-md px-3 py-2"
+          />
+          <button
+            onClick={handleGenerate}
+            disabled={isGenerating || !crop.trim()}
+            className="bg-brand-green text-white text-sm rounded-md px-4 py-2 hover:opacity-90 disabled:opacity-50 whitespace-nowrap"
+          >
+            {isGenerating ? "Thinking…" : "Get Guidance"}
+          </button>
+        </div>
+        {error && <p className="text-sm text-red-600 mt-2">{error}</p>}
       </div>
 
       {isLoading && <p className="text-sm text-gray-400">Loading…</p>}
@@ -46,8 +87,7 @@ export default function WeatherTab() {
         {!isLoading && recommendations?.results.length === 0 && (
           <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-8 text-center">
             <p className="text-sm text-gray-400">
-              No weather guidance yet. Recommendations appear here once available for your
-              community and crops.
+              No weather guidance yet — ask above for your first crop.
             </p>
           </div>
         )}

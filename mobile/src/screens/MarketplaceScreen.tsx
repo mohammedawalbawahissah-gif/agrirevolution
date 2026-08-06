@@ -29,6 +29,7 @@ export default function MarketplaceScreen() {
   const [modalVisible, setModalVisible] = useState(false);
   const [crop, setCrop] = useState("");
   const [quantity, setQuantity] = useState("");
+  const [photoUrl, setPhotoUrl] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
 
@@ -38,13 +39,14 @@ export default function MarketplaceScreen() {
     setIsSubmitting(true);
     try {
       await apiClient.post("/marketplace/listings/", {
-        farmer: user.id,
         crop,
         quantity_kg: parseFloat(quantity),
+        photo_url: photoUrl || undefined,
         listed_via: "app",
       });
       setCrop("");
       setQuantity("");
+      setPhotoUrl("");
       setModalVisible(false);
       refetch();
     } catch {
@@ -82,6 +84,7 @@ export default function MarketplaceScreen() {
                 Fair price: GHS {item.fair_price_band_low_ghs} – {item.fair_price_band_high_ghs}
               </Text>
             )}
+            {item.ai_grading_notes ? <Text style={styles.cardNotes}>{item.ai_grading_notes}</Text> : null}
           </View>
         )}
         ListEmptyComponent={
@@ -108,6 +111,13 @@ export default function MarketplaceScreen() {
               keyboardType="decimal-pad"
               value={quantity}
               onChangeText={setQuantity}
+            />
+            <TextInput
+              style={styles.input}
+              placeholder="Photo URL (optional — enables AI grading)"
+              autoCapitalize="none"
+              value={photoUrl}
+              onChangeText={setPhotoUrl}
             />
             {error ? <Text style={styles.error}>{error}</Text> : null}
             <TouchableOpacity style={styles.submitButton} onPress={handleAddListing} disabled={isSubmitting}>
@@ -155,6 +165,7 @@ const styles = StyleSheet.create({
   },
   cardGrade: { fontSize: 13, color: "#6B7280", marginTop: 6 },
   cardPrice: { fontSize: 13, fontWeight: "600", color: "#2F6B3C", marginTop: 4 },
+  cardNotes: { fontSize: 12, color: "#9CA3AF", marginTop: 6, lineHeight: 16 },
   empty: { paddingTop: 60, paddingHorizontal: 12 },
   emptyText: { textAlign: "center", color: "#9CA3AF", fontSize: 14, lineHeight: 20 },
   fab: {
