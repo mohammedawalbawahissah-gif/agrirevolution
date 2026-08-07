@@ -47,6 +47,7 @@ INSTALLED_APPS = [
     "apps.payments",
     "apps.ussd",
     "apps.notifications",
+    "apps.assistant",
 ]
 
 MIDDLEWARE = [
@@ -150,3 +151,7 @@ ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
 
 # Weather data provider (e.g. Open-Meteo / GMet feed) feeding the AI prediction layer
 WEATHER_PROVIDER_API_KEY = os.environ.get("WEATHER_PROVIDER_API_KEY", "")
+
+CLOUDINARY_CLOUD_NAME = os.environ.get("CLOUDINARY_CLOUD_NAME", "")
+CLOUDINARY_API_KEY = os.environ.get("CLOUDINARY_API_KEY", "")
+CLOUDINARY_API_SECRET = os.environ.get("CLOUDINARY_API_SECRET", "")

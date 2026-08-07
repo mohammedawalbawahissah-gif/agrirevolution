@@ -129,8 +129,10 @@ export interface ProduceListing {
   crop: string;
   quantity_kg: string;
   photo_url: string;
+  media_type: "image" | "video" | "";
   ai_grade: "A" | "B" | "C" | "ungraded";
   ai_grading_notes: string;
+  grading_source: "ai" | "manual" | "";
   fair_price_band_low_ghs: string | null;
   fair_price_band_high_ghs: string | null;
   status: "listed" | "reserved" | "sold" | "expired";

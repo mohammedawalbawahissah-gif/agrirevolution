@@ -57,7 +57,10 @@ export default function MarketplaceTab() {
   const [formOpen, setFormOpen] = useState(false);
   const [crop, setCrop] = useState("");
   const [quantity, setQuantity] = useState("");
-  const [photoUrl, setPhotoUrl] = useState("");
+  const [mediaUrl, setMediaUrl] = useState("");
+  const [mediaType, setMediaType] = useState<"image" | "video" | "">("");
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadError, setUploadError] = useState("");
   const [deliveryMethod, setDeliveryMethod] = useState<"pickup" | "delivery" | "both">("pickup");
   const [deliveryLocation, setDeliveryLocation] = useState("");
   const [acceptedPaymentMethods, setAcceptedPaymentMethods] = useState<PaymentChannel[]>([]);
@@ -70,6 +73,28 @@ export default function MarketplaceTab() {
     );
   }
 
+  async function handleFileSelected(file: File | undefined) {
+    if (!file) return;
+    setUploadError("");
+    setIsUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const { data } = await apiClient.post("/marketplace/upload-media/", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      setMediaUrl(data.url);
+      setMediaType(data.media_type);
+    } catch (err: unknown) {
+      const message =
+        (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail ||
+        "Upload failed. Please try a different photo or video.";
+      setUploadError(message);
+    } finally {
+      setIsUploading(false);
+    }
+  }
+
   async function handleAddListing() {
     setError("");
     setIsSubmitting(true);
@@ -77,7 +102,8 @@ export default function MarketplaceTab() {
       await apiClient.post("/marketplace/listings/", {
         crop,
         quantity_kg: parseFloat(quantity),
-        photo_url: photoUrl || undefined,
+        photo_url: mediaUrl || undefined,
+        media_type: mediaType || undefined,
         listed_via: "app",
         delivery_method: deliveryMethod,
         delivery_location: deliveryLocation || undefined,
@@ -85,7 +111,8 @@ export default function MarketplaceTab() {
       });
       setCrop("");
       setQuantity("");
-      setPhotoUrl("");
+      setMediaUrl("");
+      setMediaType("");
       setDeliveryMethod("pickup");
       setDeliveryLocation("");
       setAcceptedPaymentMethods([]);
@@ -138,14 +165,42 @@ export default function MarketplaceTab() {
             </div>
             <div className="md:col-span-2">
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Photo URL <span className="text-gray-400 font-normal">(optional — enables AI grading)</span>
+                Photo or Video <span className="text-gray-400 font-normal">(optional — a photo enables AI grading)</span>
               </label>
-              <input
-                value={photoUrl}
-                onChange={(e) => setPhotoUrl(e.target.value)}
-                placeholder="https://..."
-                className="w-full border border-gray-300 rounded-md px-3 py-2"
-              />
+              {mediaUrl ? (
+                <div className="flex items-center gap-3 border border-gray-300 rounded-md px-3 py-2">
+                  {mediaType === "video" ? (
+                    <video src={mediaUrl} className="w-14 h-14 object-cover rounded" muted />
+                  ) : (
+                    <img src={mediaUrl} className="w-14 h-14 object-cover rounded" alt="" />
+                  )}
+                  <p className="text-xs text-gray-500 flex-1">
+                    {mediaType === "video" ? "Video attached" : "Photo attached"}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMediaUrl("");
+                      setMediaType("");
+                    }}
+                    className="text-xs text-status-danger font-medium"
+                  >
+                    Remove
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <input
+                    type="file"
+                    accept="image/*,video/mp4,video/quicktime,video/webm"
+                    onChange={(e) => handleFileSelected(e.target.files?.[0])}
+                    disabled={isUploading}
+                    className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm file:mr-3 file:py-1 file:px-2 file:rounded file:border-0 file:bg-brand-green-light file:text-brand-green file:text-xs"
+                  />
+                  {isUploading && <p className="text-xs text-gray-400 mt-1">Uploading…</p>}
+                  {uploadError && <p className="text-xs text-status-danger mt-1">{uploadError}</p>}
+                </>
+              )}
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Delivery</label>
@@ -198,7 +253,7 @@ export default function MarketplaceTab() {
           <div className="flex gap-3 mt-4">
             <button
               onClick={handleAddListing}
-              disabled={isSubmitting}
+              disabled={isSubmitting || isUploading}
               className="bg-brand-green text-white text-sm rounded-md px-4 py-2 hover:opacity-90 disabled:opacity-50"
             >
               {isSubmitting ? "Listing…" : "List Produce"}

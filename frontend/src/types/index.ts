@@ -149,6 +149,7 @@ export interface ProduceListing {
   crop: string;
   quantity_kg: string;
   photo_url: string;
+  media_type: "image" | "video" | "";
   ai_grade: "A" | "B" | "C" | "ungraded";
   ai_grading_notes: string;
   grading_source: "ai" | "manual" | "";

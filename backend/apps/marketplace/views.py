@@ -2,13 +2,16 @@ import logging
 
 from rest_framework import viewsets
 from rest_framework.decorators import action
+from rest_framework.parsers import MultiPartParser
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.views import APIView
 
 from apps.accounts.permissions import IsAdminRole, IsBuyerRole, IsFarmerRole, IsOwnerOrAdmin
 from apps.notifications.models import Notification
 from apps.notifications.services import notify
 
+from .media import MediaUploadError, upload_listing_media
 from .models import Order, ProduceListing
 from .serializers import (
     AdminProduceListingSerializer,
@@ -62,7 +65,7 @@ class ProduceListingViewSet(viewsets.ModelViewSet):
             listing = serializer.save()
         else:
             listing = serializer.save(farmer=user)
-        if listing.photo_url:
+        if listing.photo_url and listing.media_type != "video":
             try:
                 grade_produce_listing(listing)
                 notify(
@@ -84,6 +87,11 @@ class ProduceListingViewSet(viewsets.ModelViewSet):
         user = request.user
         if not (user == listing.farmer or user.role == "admin" or user.is_staff):
             return Response({"detail": "Not permitted to grade this listing."}, status=403)
+        if listing.media_type == "video":
+            return Response(
+                {"detail": "AI grading only works on photos. Use manual grading for a video listing."},
+                status=400,
+            )
         try:
             grade_produce_listing(listing)
         except GradingServiceError as exc:
@@ -166,3 +174,28 @@ class OrderViewSet(viewsets.ModelViewSet):
                 Notification.Category.LISTING_UPDATE,
                 f"Your order for {order.listing.crop} is now {order.get_status_display()}.",
             )
+
+
+class ListingMediaUploadView(APIView):
+    """
+    POST multipart/form-data {"file": <photo or short video>}
+    -> {"url": "...", "media_type": "image"|"video"}
+
+    Farmers and admins upload here first, then use the returned url/media_type
+    as photo_url/media_type when creating or editing a listing. Kept as a
+    separate step (rather than baked into the listing serializer) so the
+    frontend can show upload progress before the listing form is submitted.
+    """
+
+    permission_classes = [IsAuthenticated, (IsFarmerRole | IsAdminRole)]
+    parser_classes = [MultiPartParser]
+
+    def post(self, request):
+        file = request.FILES.get("file")
+        if not file:
+            return Response({"detail": "file is required."}, status=400)
+        try:
+            result = upload_listing_media(file)
+        except MediaUploadError as exc:
+            return Response({"detail": str(exc)}, status=400)
+        return Response(result)

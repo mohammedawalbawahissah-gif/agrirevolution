@@ -9,10 +9,13 @@ import {
   Modal,
   TextInput,
   ActivityIndicator,
+  Image,
 } from "react-native";
+import * as ImagePicker from "expo-image-picker";
 import { useAuth } from "../context/AuthContext";
 import { useFetch } from "../hooks/useFetch";
 import { apiClient } from "../api/client";
+import { useToast } from "../context/ToastContext";
 import type { Paginated, PaymentChannel, ProduceListing } from "../types";
 import { PAYMENT_CHANNEL_LABELS } from "../types";
 
@@ -22,9 +25,11 @@ const DELIVERY_OPTIONS: { value: "pickup" | "delivery" | "both"; label: string }
   { value: "delivery", label: "Delivery Only" },
   { value: "both", label: "Pickup or Delivery" },
 ];
+const GRADES: ("A" | "B" | "C")[] = ["A", "B", "C"];
 
 export default function MarketplaceScreen() {
   const { user } = useAuth();
+  const toast = useToast();
   const {
     data: listings,
     isLoading,
@@ -37,17 +42,62 @@ export default function MarketplaceScreen() {
   const [modalVisible, setModalVisible] = useState(false);
   const [crop, setCrop] = useState("");
   const [quantity, setQuantity] = useState("");
-  const [photoUrl, setPhotoUrl] = useState("");
+  const [mediaUrl, setMediaUrl] = useState("");
+  const [mediaType, setMediaType] = useState<"image" | "video" | "">("");
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadError, setUploadError] = useState("");
   const [deliveryMethod, setDeliveryMethod] = useState<"pickup" | "delivery" | "both">("pickup");
   const [deliveryLocation, setDeliveryLocation] = useState("");
   const [acceptedPaymentMethods, setAcceptedPaymentMethods] = useState<PaymentChannel[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
 
+  const [gradingListing, setGradingListing] = useState<ProduceListing | null>(null);
+  const [manualGrade, setManualGrade] = useState<"A" | "B" | "C">("B");
+  const [manualNotes, setManualNotes] = useState("");
+  const [manualPriceLow, setManualPriceLow] = useState("");
+  const [manualPriceHigh, setManualPriceHigh] = useState("");
+  const [isGrading, setIsGrading] = useState(false);
+
   function togglePaymentMethod(channel: PaymentChannel) {
     setAcceptedPaymentMethods((prev) =>
       prev.includes(channel) ? prev.filter((c) => c !== channel) : [...prev, channel]
     );
+  }
+
+  async function handlePickMedia() {
+    setUploadError("");
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      setUploadError("Photo library permission is needed to attach a photo.");
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ["images", "videos"],
+      quality: 0.8,
+    });
+    if (result.canceled || !result.assets?.[0]) return;
+
+    const asset = result.assets[0];
+    setIsUploading(true);
+    try {
+      const formData = new FormData();
+      // @ts-expect-error React Native's FormData file shape isn't the DOM File type
+      formData.append("file", {
+        uri: asset.uri,
+        name: asset.fileName || (asset.type === "video" ? "upload.mp4" : "upload.jpg"),
+        type: asset.mimeType || (asset.type === "video" ? "video/mp4" : "image/jpeg"),
+      });
+      const { data } = await apiClient.post("/marketplace/upload-media/", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      setMediaUrl(data.url);
+      setMediaType(data.media_type);
+    } catch {
+      setUploadError("Upload failed. Please try a different photo or video.");
+    } finally {
+      setIsUploading(false);
+    }
   }
 
   async function handleAddListing() {
@@ -58,7 +108,8 @@ export default function MarketplaceScreen() {
       await apiClient.post("/marketplace/listings/", {
         crop,
         quantity_kg: parseFloat(quantity),
-        photo_url: photoUrl || undefined,
+        photo_url: mediaUrl || undefined,
+        media_type: mediaType || undefined,
         listed_via: "app",
         delivery_method: deliveryMethod,
         delivery_location: deliveryLocation || undefined,
@@ -66,7 +117,8 @@ export default function MarketplaceScreen() {
       });
       setCrop("");
       setQuantity("");
-      setPhotoUrl("");
+      setMediaUrl("");
+      setMediaType("");
       setDeliveryMethod("pickup");
       setDeliveryLocation("");
       setAcceptedPaymentMethods([]);
@@ -76,6 +128,34 @@ export default function MarketplaceScreen() {
       setError("Could not list produce. Check the details and try again.");
     } finally {
       setIsSubmitting(false);
+    }
+  }
+
+  function openManualGrade(listing: ProduceListing) {
+    setGradingListing(listing);
+    setManualGrade(listing.ai_grade === "ungraded" ? "B" : (listing.ai_grade as "A" | "B" | "C"));
+    setManualNotes("");
+    setManualPriceLow(listing.fair_price_band_low_ghs ?? "");
+    setManualPriceHigh(listing.fair_price_band_high_ghs ?? "");
+  }
+
+  async function handleManualGrade() {
+    if (!gradingListing) return;
+    setIsGrading(true);
+    try {
+      await apiClient.post(`/marketplace/listings/${gradingListing.id}/manual-grade/`, {
+        grade: manualGrade,
+        notes: manualNotes,
+        price_band_low_ghs: manualPriceLow || undefined,
+        price_band_high_ghs: manualPriceHigh || undefined,
+      });
+      toast.success("Grade saved.");
+      setGradingListing(null);
+      refetch();
+    } catch {
+      toast.error("Could not save your grade. Please try again.");
+    } finally {
+      setIsGrading(false);
     }
   }
 
@@ -100,7 +180,10 @@ export default function MarketplaceScreen() {
               <Text style={styles.cardStatus}>{item.status}</Text>
             </View>
             <Text style={styles.cardGrade}>
-              Grade: {item.ai_grade === "ungraded" ? "Pending AI review" : item.ai_grade}
+              Grade:{" "}
+              {item.ai_grade === "ungraded"
+                ? "Not graded yet"
+                : `${item.ai_grade}${item.grading_source === "manual" ? " (self-graded)" : item.grading_source === "ai" ? " (AI graded)" : ""}`}
             </Text>
             {item.fair_price_band_low_ghs && item.fair_price_band_high_ghs && (
               <Text style={styles.cardPrice}>
@@ -113,6 +196,11 @@ export default function MarketplaceScreen() {
                 {item.delivery_method.replace("_", " ")} · {item.delivery_location}
               </Text>
             ) : null}
+            <TouchableOpacity onPress={() => openManualGrade(item)}>
+              <Text style={styles.gradeLink}>
+                {item.ai_grade === "ungraded" ? "Grade it yourself" : "Edit grade"}
+              </Text>
+            </TouchableOpacity>
           </View>
         )}
         ListEmptyComponent={
@@ -140,13 +228,34 @@ export default function MarketplaceScreen() {
               value={quantity}
               onChangeText={setQuantity}
             />
-            <TextInput
-              style={styles.input}
-              placeholder="Photo URL (optional — enables AI grading)"
-              autoCapitalize="none"
-              value={photoUrl}
-              onChangeText={setPhotoUrl}
-            />
+
+            <Text style={styles.fieldLabel}>Photo or Video (optional — a photo enables AI grading)</Text>
+            {mediaUrl ? (
+              <View style={styles.mediaPreviewRow}>
+                {mediaType === "image" && <Image source={{ uri: mediaUrl }} style={styles.mediaThumb} />}
+                <Text style={styles.mediaPreviewText}>
+                  {mediaType === "video" ? "Video attached" : "Photo attached"}
+                </Text>
+                <TouchableOpacity
+                  onPress={() => {
+                    setMediaUrl("");
+                    setMediaType("");
+                  }}
+                >
+                  <Text style={styles.removeMediaText}>Remove</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <TouchableOpacity style={styles.uploadButton} onPress={handlePickMedia} disabled={isUploading}>
+                {isUploading ? (
+                  <ActivityIndicator color="#2F6B3C" />
+                ) : (
+                  <Text style={styles.uploadButtonText}>📷 Choose photo or video</Text>
+                )}
+              </TouchableOpacity>
+            )}
+            {uploadError ? <Text style={styles.error}>{uploadError}</Text> : null}
+
             <Text style={styles.fieldLabel}>Delivery</Text>
             <View style={styles.pillRow}>
               {DELIVERY_OPTIONS.map((opt) => (
@@ -187,7 +296,11 @@ export default function MarketplaceScreen() {
               ))}
             </View>
             {error ? <Text style={styles.error}>{error}</Text> : null}
-            <TouchableOpacity style={styles.submitButton} onPress={handleAddListing} disabled={isSubmitting}>
+            <TouchableOpacity
+              style={styles.submitButton}
+              onPress={handleAddListing}
+              disabled={isSubmitting || isUploading}
+            >
               {isSubmitting ? (
                 <ActivityIndicator color="#fff" />
               ) : (
@@ -195,6 +308,63 @@ export default function MarketplaceScreen() {
               )}
             </TouchableOpacity>
             <TouchableOpacity onPress={() => setModalVisible(false)}>
+              <Text style={styles.cancelText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal visible={!!gradingListing} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>
+              Grade {gradingListing?.quantity_kg}kg {gradingListing?.crop}
+            </Text>
+            <Text style={styles.gradeHint}>
+              No photo, or you know your produce better than a picture can show? Grade it yourself.
+            </Text>
+
+            <Text style={styles.fieldLabel}>Grade</Text>
+            <View style={styles.pillRow}>
+              {GRADES.map((g) => (
+                <TouchableOpacity
+                  key={g}
+                  style={[styles.gradeOption, manualGrade === g && styles.pillActive]}
+                  onPress={() => setManualGrade(g)}
+                >
+                  <Text style={[styles.gradeOptionText, manualGrade === g && styles.pillTextActive]}>{g}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <TextInput
+              style={styles.input}
+              placeholder="Notes (optional)"
+              value={manualNotes}
+              onChangeText={setManualNotes}
+              multiline
+            />
+            <View style={styles.priceRow}>
+              <TextInput
+                style={[styles.input, styles.priceInput]}
+                placeholder="Price low (GHS)"
+                keyboardType="decimal-pad"
+                value={manualPriceLow}
+                onChangeText={setManualPriceLow}
+              />
+              <TextInput
+                style={[styles.input, styles.priceInput]}
+                placeholder="Price high (GHS)"
+                keyboardType="decimal-pad"
+                value={manualPriceHigh}
+                onChangeText={setManualPriceHigh}
+              />
+            </View>
+
+            <TouchableOpacity style={styles.submitButton} onPress={handleManualGrade} disabled={isGrading}>
+              {isGrading ? <ActivityIndicator color="#fff" /> : <Text style={styles.submitButtonText}>Save Grade</Text>}
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => setGradingListing(null)}>
               <Text style={styles.cancelText}>Cancel</Text>
             </TouchableOpacity>
           </View>
@@ -233,6 +403,7 @@ const styles = StyleSheet.create({
   cardGrade: { fontSize: 13, color: "#6B7280", marginTop: 6 },
   cardPrice: { fontSize: 13, fontWeight: "600", color: "#2F6B3C", marginTop: 4 },
   cardNotes: { fontSize: 12, color: "#9CA3AF", marginTop: 6, lineHeight: 16 },
+  gradeLink: { fontSize: 12, color: "#2F6B3C", fontWeight: "600", marginTop: 8 },
   empty: { paddingTop: 60, paddingHorizontal: 12 },
   emptyText: { textAlign: "center", color: "#9CA3AF", fontSize: 14, lineHeight: 20 },
   fab: {
@@ -276,4 +447,41 @@ const styles = StyleSheet.create({
   submitButton: { backgroundColor: "#2F6B3C", borderRadius: 8, paddingVertical: 14, alignItems: "center" },
   submitButtonText: { color: "#fff", fontWeight: "600", fontSize: 15 },
   cancelText: { textAlign: "center", color: "#6B7280", marginTop: 12, fontSize: 14 },
+  uploadButton: {
+    borderWidth: 1,
+    borderColor: "#D1D5DB",
+    borderStyle: "dashed",
+    borderRadius: 8,
+    paddingVertical: 14,
+    alignItems: "center",
+    marginBottom: 8,
+    backgroundColor: "#F9FAFB",
+  },
+  uploadButtonText: { color: "#2F6B3C", fontWeight: "600", fontSize: 14 },
+  mediaPreviewRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    borderWidth: 1,
+    borderColor: "#D1D5DB",
+    borderRadius: 8,
+    padding: 10,
+    marginBottom: 8,
+  },
+  mediaThumb: { width: 44, height: 44, borderRadius: 6 },
+  mediaPreviewText: { flex: 1, fontSize: 12, color: "#6B7280" },
+  removeMediaText: { fontSize: 12, color: "#B3403A", fontWeight: "600" },
+  gradeHint: { fontSize: 12, color: "#6B7280", marginBottom: 14 },
+  gradeOption: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: "#D1D5DB",
+    borderRadius: 8,
+    paddingVertical: 10,
+    alignItems: "center",
+    backgroundColor: "#fff",
+  },
+  gradeOptionText: { fontSize: 15, fontWeight: "700", color: "#374151" },
+  priceRow: { flexDirection: "row", gap: 10 },
+  priceInput: { flex: 1 },
 });

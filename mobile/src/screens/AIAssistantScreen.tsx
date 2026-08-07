@@ -8,7 +8,9 @@ import {
   TextInput,
   TouchableOpacity,
   ActivityIndicator,
+  Image,
 } from "react-native";
+import * as ImagePicker from "expo-image-picker";
 import { useAuth } from "../context/AuthContext";
 import { useFetch } from "../hooks/useFetch";
 import { apiClient } from "../api/client";
@@ -56,21 +58,59 @@ export default function AIAssistantScreen() {
     refetch: refetchListings,
   } = useFetch<Paginated<ProduceListing>>(user ? "/marketplace/listings/" : null, [user?.id]);
   const [photoDrafts, setPhotoDrafts] = useState<Record<number, string>>({});
+  const [mediaTypeDrafts, setMediaTypeDrafts] = useState<Record<number, "image" | "video" | "">>({});
+  const [uploadingId, setUploadingId] = useState<number | null>(null);
   const [gradingId, setGradingId] = useState<number | null>(null);
   const [gradeError, setGradeError] = useState<Record<number, string>>({});
 
+  async function handlePickPhoto(listing: ProduceListing) {
+    setGradeError((e) => ({ ...e, [listing.id]: "" }));
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      setGradeError((e) => ({ ...e, [listing.id]: "Photo library permission is needed." }));
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ["images"], quality: 0.8 });
+    if (result.canceled || !result.assets?.[0]) return;
+
+    const asset = result.assets[0];
+    setUploadingId(listing.id);
+    try {
+      const formData = new FormData();
+      // @ts-expect-error React Native's FormData file shape isn't the DOM File type
+      formData.append("file", {
+        uri: asset.uri,
+        name: asset.fileName || "upload.jpg",
+        type: asset.mimeType || "image/jpeg",
+      });
+      const { data } = await apiClient.post("/marketplace/upload-media/", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      setPhotoDrafts((d) => ({ ...d, [listing.id]: data.url }));
+      setMediaTypeDrafts((d) => ({ ...d, [listing.id]: data.media_type }));
+    } catch {
+      setGradeError((e) => ({ ...e, [listing.id]: "Upload failed. Please try a different photo." }));
+    } finally {
+      setUploadingId(null);
+    }
+  }
+
   async function handleGrade(listing: ProduceListing) {
     const draftUrl = photoDrafts[listing.id]?.trim();
+    const draftMediaType = mediaTypeDrafts[listing.id];
     setGradeError((e) => ({ ...e, [listing.id]: "" }));
     setGradingId(listing.id);
     try {
       if (draftUrl && draftUrl !== listing.photo_url) {
-        await apiClient.patch(`/marketplace/listings/${listing.id}/`, { photo_url: draftUrl });
+        await apiClient.patch(`/marketplace/listings/${listing.id}/`, {
+          photo_url: draftUrl,
+          media_type: draftMediaType || undefined,
+        });
       }
       await apiClient.post(`/marketplace/listings/${listing.id}/grade/`);
       refetchListings();
     } catch {
-      setGradeError((e) => ({ ...e, [listing.id]: "Grading failed — check the photo URL." }));
+      setGradeError((e) => ({ ...e, [listing.id]: "Grading failed — check the photo and try again." }));
     } finally {
       setGradingId(null);
     }
@@ -150,13 +190,22 @@ export default function AIAssistantScreen() {
             <Text style={styles.cardCrop}>
               {listing.quantity_kg}kg {listing.crop}
             </Text>
-            <TextInput
-              style={styles.photoInput}
-              placeholder="https://... photo URL"
-              autoCapitalize="none"
-              value={photoDrafts[listing.id] ?? listing.photo_url ?? ""}
-              onChangeText={(v) => setPhotoDrafts((d) => ({ ...d, [listing.id]: v }))}
-            />
+            {(photoDrafts[listing.id] ?? listing.photo_url) ? (
+              <Image source={{ uri: photoDrafts[listing.id] ?? listing.photo_url }} style={styles.photoThumb} />
+            ) : null}
+            <TouchableOpacity
+              style={styles.photoPickButton}
+              onPress={() => handlePickPhoto(listing)}
+              disabled={uploadingId === listing.id}
+            >
+              {uploadingId === listing.id ? (
+                <ActivityIndicator color="#2F6B3C" size="small" />
+              ) : (
+                <Text style={styles.photoPickButtonText}>
+                  {(photoDrafts[listing.id] ?? listing.photo_url) ? "Change photo" : "📷 Choose photo"}
+                </Text>
+              )}
+            </TouchableOpacity>
             <TouchableOpacity
               style={[
                 styles.generateButton,
@@ -263,6 +312,17 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     fontSize: 13,
   },
+  photoThumb: { width: 60, height: 60, borderRadius: 8 },
+  photoPickButton: {
+    borderWidth: 1,
+    borderColor: "#D1D5DB",
+    borderStyle: "dashed",
+    borderRadius: 8,
+    paddingVertical: 10,
+    alignItems: "center",
+    backgroundColor: "#F9FAFB",
+  },
+  photoPickButtonText: { color: "#2F6B3C", fontWeight: "600", fontSize: 13 },
   cardCrop: { fontSize: 16, fontWeight: "600" },
   cardAction: { fontSize: 14, color: "#2F6B3C", fontWeight: "600", marginTop: 4 },
   cardWindow: { fontSize: 13, color: "#6B7280", marginTop: 2 },

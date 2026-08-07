@@ -30,6 +30,10 @@ class ProduceListing(models.Model):
     crop = models.CharField(max_length=120)
     quantity_kg = models.DecimalField(max_digits=9, decimal_places=2)
     photo_url = models.URLField(blank=True)
+    media_type = models.CharField(
+        max_length=10, choices=[("image", "Image"), ("video", "Video")], blank=True,
+        help_text="What kind of file photo_url points at. AI grading only runs for images.",
+    )
     ai_grade = models.CharField(max_length=10, choices=Grade.choices, default=Grade.UNGRADED)
     ai_grading_notes = models.TextField(blank=True, help_text="Explanation the AI gave for the grade assigned")
     grading_source = models.CharField(

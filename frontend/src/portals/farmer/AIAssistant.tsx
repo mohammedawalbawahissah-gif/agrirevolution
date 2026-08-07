@@ -100,21 +100,46 @@ function ProduceGradingSection() {
   );
 
   const [photoUrlDrafts, setPhotoUrlDrafts] = useState<Record<number, string>>({});
+  const [mediaTypeDrafts, setMediaTypeDrafts] = useState<Record<number, "image" | "video" | "">>({});
+  const [uploadingId, setUploadingId] = useState<number | null>(null);
   const [gradingId, setGradingId] = useState<number | null>(null);
   const [error, setError] = useState<Record<number, string>>({});
 
+  async function handleFileSelected(listing: ProduceListing, file: File | undefined) {
+    if (!file) return;
+    setError((e) => ({ ...e, [listing.id]: "" }));
+    setUploadingId(listing.id);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const { data } = await apiClient.post("/marketplace/upload-media/", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      setPhotoUrlDrafts((d) => ({ ...d, [listing.id]: data.url }));
+      setMediaTypeDrafts((d) => ({ ...d, [listing.id]: data.media_type }));
+    } catch {
+      setError((e) => ({ ...e, [listing.id]: "Upload failed. Please try a different photo." }));
+    } finally {
+      setUploadingId(null);
+    }
+  }
+
   async function handleGrade(listing: ProduceListing) {
     const draftUrl = photoUrlDrafts[listing.id]?.trim();
+    const draftMediaType = mediaTypeDrafts[listing.id];
     setError((e) => ({ ...e, [listing.id]: "" }));
     setGradingId(listing.id);
     try {
       if (draftUrl && draftUrl !== listing.photo_url) {
-        await apiClient.patch(`/marketplace/listings/${listing.id}/`, { photo_url: draftUrl });
+        await apiClient.patch(`/marketplace/listings/${listing.id}/`, {
+          photo_url: draftUrl,
+          media_type: draftMediaType || undefined,
+        });
       }
       await apiClient.post(`/marketplace/listings/${listing.id}/grade/`);
       refetch();
     } catch {
-      setError((e) => ({ ...e, [listing.id]: "Grading failed — check the photo URL and try again." }));
+      setError((e) => ({ ...e, [listing.id]: "Grading failed — check the photo and try again." }));
     } finally {
       setGradingId(null);
     }
@@ -142,19 +167,31 @@ function ProduceGradingSection() {
               <p className="font-medium text-sm">
                 {listing.quantity_kg}kg {listing.crop}
               </p>
-              <div className="flex gap-3">
+              <div className="flex gap-3 items-center">
+                {(photoUrlDrafts[listing.id] ?? listing.photo_url) ? (
+                  <img
+                    src={photoUrlDrafts[listing.id] ?? listing.photo_url}
+                    className="w-12 h-12 object-cover rounded"
+                    alt=""
+                  />
+                ) : null}
                 <input
-                  value={photoUrlDrafts[listing.id] ?? listing.photo_url ?? ""}
-                  onChange={(e) => setPhotoUrlDrafts((d) => ({ ...d, [listing.id]: e.target.value }))}
-                  placeholder="https://... photo URL"
-                  className="flex-1 border border-gray-300 rounded-md px-3 py-2 text-sm"
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => handleFileSelected(listing, e.target.files?.[0])}
+                  disabled={uploadingId === listing.id}
+                  className="flex-1 border border-gray-300 rounded-md px-3 py-2 text-sm file:mr-3 file:py-1 file:px-2 file:rounded file:border-0 file:bg-brand-green-light file:text-brand-green file:text-xs"
                 />
                 <button
                   onClick={() => handleGrade(listing)}
-                  disabled={gradingId === listing.id || !(photoUrlDrafts[listing.id] ?? listing.photo_url)}
+                  disabled={
+                    gradingId === listing.id ||
+                    uploadingId === listing.id ||
+                    !(photoUrlDrafts[listing.id] ?? listing.photo_url)
+                  }
                   className="bg-brand-green text-white text-sm rounded-md px-4 py-2 hover:opacity-90 disabled:opacity-50 whitespace-nowrap"
                 >
-                  {gradingId === listing.id ? "Grading…" : "Grade with AI"}
+                  {gradingId === listing.id ? "Grading…" : uploadingId === listing.id ? "Uploading…" : "Grade with AI"}
                 </button>
               </div>
               {error[listing.id] && <p className="text-sm text-red-600">{error[listing.id]}</p>}

@@ -10,7 +10,8 @@
       "supportsTablet": true,
       "infoPlist": {
         "NSMicrophoneUsageDescription": "Used for voice questions to the AI Assistant.",
-        "NSSpeechRecognitionUsageDescription": "Used to turn your spoken questions into text for the AI Assistant."
+        "NSSpeechRecognitionUsageDescription": "Used to turn your spoken questions into text for the AI Assistant.",
+        "NSPhotoLibraryUsageDescription": "Used to attach a photo or video of your produce to a listing."
       }
     },
     "android": {
@@ -31,6 +32,12 @@
         {
           "microphonePermission": "Used for voice questions to the AI Assistant.",
           "speechRecognitionPermission": "Used to turn your spoken questions into text for the AI Assistant."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Used to attach a photo or video of your produce to a listing."
         }
       ]
     ]

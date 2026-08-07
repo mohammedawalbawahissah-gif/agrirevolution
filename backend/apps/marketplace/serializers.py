@@ -9,7 +9,7 @@ class ProduceListingSerializer(serializers.ModelSerializer):
     class Meta:
         model = ProduceListing
         fields = [
-            "id", "farmer", "crop", "quantity_kg", "photo_url", "ai_grade",
+            "id", "farmer", "crop", "quantity_kg", "photo_url", "media_type", "ai_grade",
             "ai_grading_notes", "grading_source", "fair_price_band_low_ghs",
             "fair_price_band_high_ghs", "status", "listed_via", "delivery_method",
             "delivery_location", "accepted_payment_methods", "created_at",
@@ -41,7 +41,7 @@ class AdminProduceListingSerializer(serializers.ModelSerializer):
     class Meta:
         model = ProduceListing
         fields = [
-            "id", "farmer", "crop", "quantity_kg", "photo_url", "ai_grade",
+            "id", "farmer", "crop", "quantity_kg", "photo_url", "media_type", "ai_grade",
             "ai_grading_notes", "grading_source", "fair_price_band_low_ghs",
             "fair_price_band_high_ghs", "status", "listed_via", "delivery_method",
             "delivery_location", "accepted_payment_methods", "created_at",

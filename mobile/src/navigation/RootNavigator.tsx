@@ -13,6 +13,7 @@ import EquipmentManageScreen from "../screens/dealer/EquipmentManageScreen";
 import BrowseProduceScreen from "../screens/buyer/BrowseProduceScreen";
 import AdminDashboardScreen from "../screens/admin/AdminDashboardScreen";
 import NotificationBell from "../components/NotificationBell";
+import AIAssistantWidget from "../components/AIAssistantWidget";
 
 const AuthStack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -103,5 +104,10 @@ export default function RootNavigator() {
     );
   }
 
-  return <NavigationContainer>{user ? <RoleTabs /> : <AuthNavigator />}</NavigationContainer>;
+  return (
+    <View style={{ flex: 1 }}>
+      <NavigationContainer>{user ? <RoleTabs /> : <AuthNavigator />}</NavigationContainer>
+      {user && <AIAssistantWidget />}
+    </View>
+  );
 }
