@@ -12,6 +12,7 @@ import AccountScreen from "../screens/AccountScreen";
 import EquipmentManageScreen from "../screens/dealer/EquipmentManageScreen";
 import BrowseProduceScreen from "../screens/buyer/BrowseProduceScreen";
 import AdminDashboardScreen from "../screens/admin/AdminDashboardScreen";
+import NotificationBell from "../components/NotificationBell";
 
 const AuthStack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -27,10 +28,20 @@ function AuthNavigator() {
 
 // Mirrors the web frontend's per-role portal split (admin/dealer/buyer/farmer),
 // just expressed as tab sets instead of routes.
+//
+// Every tab group shares the same top strip via screenOptions: a native
+// header showing "AgriRevolution" with the notification bell on the right,
+// so it stays one shared header across all four roles rather than four
+// separately built ones — same principle as web's PortalShell.
+const SHARED_HEADER_OPTIONS = {
+  headerShown: true,
+  headerTitle: "AgriRevolution",
+  headerRight: () => <NotificationBell />,
+} as const;
 
 function FarmerTabs() {
   return (
-    <Tab.Navigator screenOptions={{ headerShown: false }}>
+    <Tab.Navigator screenOptions={SHARED_HEADER_OPTIONS}>
       <Tab.Screen name="AI Assistant" component={AIAssistantScreen} />
       <Tab.Screen name="Equipment" component={EquipmentScreen} />
       <Tab.Screen name="Marketplace" component={MarketplaceScreen} />
@@ -41,7 +52,7 @@ function FarmerTabs() {
 
 function DealerTabs() {
   return (
-    <Tab.Navigator screenOptions={{ headerShown: false }}>
+    <Tab.Navigator screenOptions={SHARED_HEADER_OPTIONS}>
       <Tab.Screen name="Equipment" component={EquipmentManageScreen} />
       <Tab.Screen name="Account" component={AccountScreen} />
     </Tab.Navigator>
@@ -50,7 +61,7 @@ function DealerTabs() {
 
 function BuyerTabs() {
   return (
-    <Tab.Navigator screenOptions={{ headerShown: false }}>
+    <Tab.Navigator screenOptions={SHARED_HEADER_OPTIONS}>
       <Tab.Screen name="Marketplace" component={BrowseProduceScreen} />
       <Tab.Screen name="Account" component={AccountScreen} />
     </Tab.Navigator>
@@ -59,7 +70,7 @@ function BuyerTabs() {
 
 function AdminTabs() {
   return (
-    <Tab.Navigator screenOptions={{ headerShown: false }}>
+    <Tab.Navigator screenOptions={SHARED_HEADER_OPTIONS}>
       <Tab.Screen name="Dashboard" component={AdminDashboardScreen} />
       <Tab.Screen name="Account" component={AccountScreen} />
     </Tab.Navigator>

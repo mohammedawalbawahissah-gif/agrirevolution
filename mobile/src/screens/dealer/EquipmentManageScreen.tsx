@@ -14,6 +14,10 @@ import {
 import { useAuth } from "../../context/AuthContext";
 import { useFetch } from "../../hooks/useFetch";
 import { apiClient } from "../../api/client";
+import { useToast } from "../../context/ToastContext";
+import StatusBadge from "../../components/ui/StatusBadge";
+import Button from "../../components/ui/Button";
+import { colors, radius } from "../../theme/tokens";
 import type { Paginated, Equipment, EquipmentBooking } from "../../types";
 
 const CATEGORIES = ["ploughing", "planting", "harvesting", "spraying", "transport"] as const;
@@ -38,6 +42,7 @@ export default function EquipmentManageScreen() {
     user ? "/equipment/bookings/" : null,
     [user?.id]
   );
+  const toast = useToast();
 
   const [modalVisible, setModalVisible] = useState(false);
   const [form, setForm] = useState({
@@ -59,6 +64,7 @@ export default function EquipmentManageScreen() {
         ...form,
         rate_per_acre_ghs: parseFloat(form.rate_per_acre_ghs),
       });
+      toast.success(`${form.name} added`);
       setForm({ name: "", category: "ploughing", rate_per_acre_ghs: "", description: "" });
       setModalVisible(false);
       refetch();
@@ -73,7 +79,10 @@ export default function EquipmentManageScreen() {
     setBusyId(item.id);
     try {
       await apiClient.patch(`/equipment/equipment/${item.id}/`, { is_available: !item.is_available });
+      toast.success(item.is_available ? `${item.name} paused` : `${item.name} reactivated`);
       refetch();
+    } catch {
+      toast.error("Couldn't update this listing.");
     } finally {
       setBusyId(null);
     }
@@ -90,7 +99,10 @@ export default function EquipmentManageScreen() {
     setBusyId(item.id);
     try {
       await apiClient.delete(`/equipment/equipment/${item.id}/`);
+      toast.success(`${item.name} deleted`);
       refetch();
+    } catch {
+      toast.error("Couldn't delete this listing.");
     } finally {
       setBusyId(null);
     }
@@ -106,7 +118,10 @@ export default function EquipmentManageScreen() {
     setBusyId(booking.id);
     try {
       await apiClient.patch(`/equipment/bookings/${booking.id}/`, { status });
+      toast.success(`Booking #${booking.id} marked ${status.replace("_", " ")}`);
       refetchBookings();
+    } catch {
+      toast.error("Couldn't update this booking.");
     } finally {
       setBusyId(null);
     }
@@ -130,7 +145,10 @@ export default function EquipmentManageScreen() {
               <View style={{ flex: 1 }}>
                 <Text style={styles.cardName}>{item.name}</Text>
                 <Text style={styles.cardCategory}>{item.category}</Text>
-                <Text style={styles.cardRate}>GHS {item.rate_per_acre_ghs} / acre</Text>
+                <View style={styles.cardMetaRow}>
+                  <Text style={styles.cardRate}>GHS {item.rate_per_acre_ghs} / acre</Text>
+                  <StatusBadge status={item.is_available ? "Available" : "Paused"} />
+                </View>
               </View>
               <View style={styles.cardActions}>
                 <TouchableOpacity onPress={() => toggleAvailable(item)} disabled={busyId === item.id}>
@@ -163,7 +181,7 @@ export default function EquipmentManageScreen() {
                 <Text style={styles.bookingText}>
                   {b.acreage} acres — {b.requested_date}
                 </Text>
-                <Text style={styles.bookingStatus}>{b.status.replace("_", " ")} ›</Text>
+                <StatusBadge status={b.status} />
               </TouchableOpacity>
             ))}
             {bookings?.results.length === 0 && <Text style={styles.emptyText}>No bookings yet.</Text>}
@@ -182,6 +200,7 @@ export default function EquipmentManageScreen() {
             <TextInput
               style={styles.input}
               placeholder="Equipment name"
+              placeholderTextColor={colors.textMuted}
               value={form.name}
               onChangeText={(v) => setForm({ ...form, name: v })}
             />
@@ -203,6 +222,7 @@ export default function EquipmentManageScreen() {
             <TextInput
               style={styles.input}
               placeholder="Rate per acre (GHS)"
+              placeholderTextColor={colors.textMuted}
               keyboardType="decimal-pad"
               value={form.rate_per_acre_ghs}
               onChangeText={(v) => setForm({ ...form, rate_per_acre_ghs: v })}
@@ -210,13 +230,12 @@ export default function EquipmentManageScreen() {
             <TextInput
               style={styles.input}
               placeholder="Description (optional)"
+              placeholderTextColor={colors.textMuted}
               value={form.description}
               onChangeText={(v) => setForm({ ...form, description: v })}
             />
             {error ? <Text style={styles.error}>{error}</Text> : null}
-            <TouchableOpacity style={styles.submitButton} onPress={handleAddEquipment} disabled={isSubmitting}>
-              {isSubmitting ? <ActivityIndicator color="#fff" /> : <Text style={styles.submitButtonText}>Add Equipment</Text>}
-            </TouchableOpacity>
+            <Button title="Add Equipment" onPress={handleAddEquipment} isLoading={isSubmitting} />
             <TouchableOpacity onPress={() => setModalVisible(false)}>
               <Text style={styles.cancelText}>Cancel</Text>
             </TouchableOpacity>
@@ -228,77 +247,77 @@ export default function EquipmentManageScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F9FAFB" },
+  container: { flex: 1, backgroundColor: colors.brandCream },
   header: { paddingTop: 60, paddingHorizontal: 20, paddingBottom: 16 },
-  title: { fontSize: 24, fontWeight: "700" },
-  subtitle: { fontSize: 13, color: "#6B7280", marginTop: 4 },
+  title: { fontSize: 24, fontWeight: "700", color: colors.textPrimary, letterSpacing: -0.3 },
+  subtitle: { fontSize: 13, color: colors.textSecondary, marginTop: 4 },
   list: { paddingHorizontal: 20, paddingBottom: 100 },
   card: {
-    backgroundColor: "#fff",
-    borderRadius: 10,
+    backgroundColor: colors.white,
+    borderRadius: radius.md,
     padding: 16,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: "#E5E7EB",
+    borderColor: colors.border,
   },
   cardBusy: { opacity: 0.5 },
   cardHeaderRow: { flexDirection: "row", justifyContent: "space-between" },
   cardActions: { alignItems: "flex-end", gap: 8 },
-  actionLink: { fontSize: 12, fontWeight: "600", color: "#2F6B3C" },
-  deleteLink: { fontSize: 12, fontWeight: "600", color: "#DC2626" },
-  cardName: { fontSize: 16, fontWeight: "600" },
-  cardCategory: { fontSize: 13, color: "#6B7280", marginTop: 2, textTransform: "capitalize" },
-  cardRate: { fontSize: 14, fontWeight: "600", color: "#2F6B3C", marginTop: 6 },
+  actionLink: { fontSize: 12, fontWeight: "600", color: colors.brandGreen },
+  deleteLink: { fontSize: 12, fontWeight: "600", color: colors.statusDanger },
+  cardName: { fontSize: 16, fontWeight: "600", color: colors.textPrimary },
+  cardCategory: { fontSize: 13, color: colors.textSecondary, marginTop: 2, textTransform: "capitalize" },
+  cardMetaRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: 8 },
+  cardRate: { fontSize: 13, fontWeight: "600", color: colors.brandGreen },
   empty: { paddingTop: 20, paddingHorizontal: 12 },
-  emptyText: { textAlign: "center", color: "#9CA3AF", fontSize: 14 },
+  emptyText: { textAlign: "center", color: colors.textMuted, fontSize: 14 },
   bookingsSection: { marginTop: 16 },
-  bookingsTitle: { fontSize: 15, fontWeight: "600", marginBottom: 10 },
+  bookingsTitle: { fontSize: 15, fontWeight: "600", color: colors.textPrimary, marginBottom: 10 },
   bookingRow: {
     flexDirection: "row",
     justifyContent: "space-between",
+    alignItems: "center",
     paddingVertical: 8,
     borderBottomWidth: 1,
-    borderBottomColor: "#E5E7EB",
+    borderBottomColor: colors.border,
   },
-  bookingText: { fontSize: 13 },
-  bookingStatus: { fontSize: 12, color: "#2F6B3C", fontWeight: "600", textTransform: "capitalize" },
+  bookingText: { fontSize: 13, color: colors.textPrimary },
   fab: {
     position: "absolute",
     bottom: 24,
     left: 20,
     right: 20,
-    backgroundColor: "#2F6B3C",
-    borderRadius: 10,
+    backgroundColor: colors.brandGreen,
+    borderRadius: radius.md,
     paddingVertical: 14,
     alignItems: "center",
   },
   fabText: { color: "#fff", fontWeight: "700", fontSize: 15 },
   modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.4)", justifyContent: "flex-end" },
-  modalContent: { backgroundColor: "#fff", borderTopLeftRadius: 16, borderTopRightRadius: 16, padding: 24 },
-  modalTitle: { fontSize: 18, fontWeight: "700", marginBottom: 16 },
+  modalContent: { backgroundColor: colors.white, borderTopLeftRadius: radius.lg, borderTopRightRadius: radius.lg, padding: 24 },
+  modalTitle: { fontSize: 18, fontWeight: "700", color: colors.textPrimary, marginBottom: 16 },
   input: {
-    backgroundColor: "#F9FAFB",
+    backgroundColor: colors.brandCream,
     borderWidth: 1,
-    borderColor: "#D1D5DB",
-    borderRadius: 8,
+    borderColor: colors.border,
+    borderRadius: radius.sm,
     paddingHorizontal: 14,
     paddingVertical: 12,
     marginBottom: 12,
     fontSize: 15,
+    color: colors.textPrimary,
   },
   categoryRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 12 },
   categoryChip: {
     borderWidth: 1,
-    borderColor: "#D1D5DB",
-    borderRadius: 999,
+    borderColor: colors.border,
+    borderRadius: radius.full,
     paddingHorizontal: 12,
     paddingVertical: 6,
   },
-  categoryChipActive: { backgroundColor: "#2F6B3C", borderColor: "#2F6B3C" },
+  categoryChipActive: { backgroundColor: colors.brandGreen, borderColor: colors.brandGreen },
   categoryChipText: { fontSize: 12, color: "#374151", textTransform: "capitalize" },
   categoryChipTextActive: { color: "#fff" },
-  error: { color: "#DC2626", fontSize: 13, marginBottom: 8 },
-  submitButton: { backgroundColor: "#2F6B3C", borderRadius: 8, paddingVertical: 14, alignItems: "center" },
-  submitButtonText: { color: "#fff", fontWeight: "600", fontSize: 15 },
-  cancelText: { textAlign: "center", color: "#6B7280", marginTop: 12, fontSize: 14 },
+  error: { color: colors.statusDanger, fontSize: 13, marginBottom: 8 },
+  cancelText: { textAlign: "center", color: colors.textSecondary, marginTop: 12, fontSize: 14 },
 });

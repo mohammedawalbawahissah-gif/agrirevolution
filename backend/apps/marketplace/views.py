@@ -10,7 +10,12 @@ from apps.notifications.models import Notification
 from apps.notifications.services import notify
 
 from .models import Order, ProduceListing
-from .serializers import AdminProduceListingSerializer, OrderSerializer, ProduceListingSerializer
+from .serializers import (
+    AdminProduceListingSerializer,
+    OrderSerializer,
+    OrderStatusSerializer,
+    ProduceListingSerializer,
+)
 from .services import GradingServiceError, grade_produce_listing
 
 logger = logging.getLogger(__name__)
@@ -106,6 +111,14 @@ class OrderViewSet(viewsets.ModelViewSet):
         if self.action == "create":
             return [IsAuthenticated(), IsBuyerRole()]
         return [IsAuthenticated()]
+
+    def get_serializer_class(self):
+        user = self.request.user
+        if user.is_authenticated and user.role == "buyer":
+            return OrderSerializer
+        # farmers and admins update status only; the buyer's delivery/payment
+        # choices are locked in OrderStatusSerializer's read_only_fields.
+        return OrderStatusSerializer
 
     def perform_create(self, serializer):
         order = serializer.save(buyer=self.request.user)

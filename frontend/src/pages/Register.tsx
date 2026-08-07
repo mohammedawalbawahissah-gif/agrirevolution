@@ -2,6 +2,11 @@ import { useState, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { apiClient } from "../api/client";
 import type { UserRole } from "../types";
+import Button from "../components/ui/Button";
+
+const inputClass =
+  "w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-green focus:border-transparent";
+const labelClass = "block text-sm font-medium text-gray-700 mb-1";
 
 export default function Register() {
   const [form, setForm] = useState({
@@ -38,71 +43,71 @@ export default function Register() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4 py-12">
-      <div className="w-full max-w-md bg-white rounded-lg shadow p-8">
-        <h1 className="text-2xl font-bold text-brand-green mb-1">Create your account</h1>
-        <p className="text-gray-500 text-sm mb-6">Join AgriRevolution as a farmer, dealer, or buyer</p>
+    <div className="min-h-screen flex items-center justify-center bg-brand-cream px-4 py-12">
+      <div className="w-full max-w-md bg-white rounded-xl shadow-sm border border-gray-100 p-8">
+        <h1 className="text-page-title">Create your account</h1>
+        <p className="text-page-subtitle mb-6">Join AgriRevolution as a farmer, dealer, or buyer</p>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">First name</label>
+              <label className={labelClass}>First name</label>
               <input
                 required
                 value={form.first_name}
                 onChange={(e) => update("first_name", e.target.value)}
-                className="w-full border border-gray-300 rounded-md px-3 py-2"
+                className={inputClass}
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Last name</label>
+              <label className={labelClass}>Last name</label>
               <input
                 required
                 value={form.last_name}
                 onChange={(e) => update("last_name", e.target.value)}
-                className="w-full border border-gray-300 rounded-md px-3 py-2"
+                className={inputClass}
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Username</label>
+            <label className={labelClass}>Username</label>
             <input
               required
               value={form.username}
               onChange={(e) => update("username", e.target.value)}
-              className="w-full border border-gray-300 rounded-md px-3 py-2"
+              className={inputClass}
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Phone number</label>
+            <label className={labelClass}>Phone number</label>
             <input
               required
               value={form.phone_number}
               onChange={(e) => update("phone_number", e.target.value)}
               placeholder="0XXXXXXXXX"
-              className="w-full border border-gray-300 rounded-md px-3 py-2"
+              className={inputClass}
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
+            <label className={labelClass}>Password</label>
             <input
               required
               type="password"
               value={form.password}
               onChange={(e) => update("password", e.target.value)}
-              className="w-full border border-gray-300 rounded-md px-3 py-2"
+              className={inputClass}
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">I am a...</label>
+            <label className={labelClass}>I am a...</label>
             <select
               value={form.role}
               onChange={(e) => update("role", e.target.value as UserRole)}
-              className="w-full border border-gray-300 rounded-md px-3 py-2"
+              className={inputClass}
             >
               <option value="farmer">Farmer</option>
               <option value="dealer">Equipment Dealer</option>
@@ -111,23 +116,19 @@ export default function Register() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Community</label>
+            <label className={labelClass}>Community</label>
             <input
               value={form.community}
               onChange={(e) => update("community", e.target.value)}
-              className="w-full border border-gray-300 rounded-md px-3 py-2"
+              className={inputClass}
             />
           </div>
 
-          {error && <p className="text-sm text-red-600">{error}</p>}
+          {error && <p className="text-sm text-status-danger">{error}</p>}
 
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            className="w-full bg-brand-green text-white rounded-md py-2 font-medium hover:opacity-90 disabled:opacity-50"
-          >
+          <Button type="submit" isLoading={isSubmitting} className="w-full">
             {isSubmitting ? "Creating account..." : "Create account"}
-          </button>
+          </Button>
         </form>
 
         <p className="text-sm text-gray-500 mt-4 text-center">

@@ -1,16 +1,10 @@
 import { useState } from "react";
-import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  StyleSheet,
-  ScrollView,
-  ActivityIndicator,
-} from "react-native";
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { useAuth } from "../../context/AuthContext";
 import type { UserRole } from "../../types";
+import Button from "../../components/ui/Button";
+import { colors, radius } from "../../theme/tokens";
 
 const ROLES: { value: UserRole; label: string }[] = [
   { value: "farmer", label: "Farmer" },
@@ -121,9 +115,7 @@ export default function RegisterScreen() {
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
-      <TouchableOpacity style={styles.button} onPress={handleRegister} disabled={isSubmitting}>
-        {isSubmitting ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Create Account</Text>}
-      </TouchableOpacity>
+      <Button title="Create Account" onPress={handleRegister} isLoading={isSubmitting} style={styles.button} />
 
       <TouchableOpacity onPress={() => navigation.navigate("Login")}>
         <Text style={styles.link}>Already have an account? Sign in</Text>
@@ -133,10 +125,10 @@ export default function RegisterScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F9FAFB" },
+  container: { flex: 1, backgroundColor: colors.brandCream },
   content: { padding: 24, paddingTop: 60, paddingBottom: 40 },
-  title: { fontSize: 24, fontWeight: "700", color: "#2F6B3C", marginBottom: 4 },
-  subtitle: { fontSize: 14, color: "#6B7280", marginBottom: 24 },
+  title: { fontSize: 24, fontWeight: "700", color: colors.textPrimary, letterSpacing: -0.3 },
+  subtitle: { fontSize: 14, color: colors.textSecondary, marginTop: 4, marginBottom: 24 },
   row: { flexDirection: "row", gap: 8 },
   halfInput: { flex: 1 },
   label: { fontSize: 13, fontWeight: "600", color: "#374151", marginBottom: 8 },
@@ -144,32 +136,26 @@ const styles = StyleSheet.create({
   roleChip: {
     flex: 1,
     borderWidth: 1,
-    borderColor: "#D1D5DB",
-    borderRadius: 8,
+    borderColor: colors.border,
+    borderRadius: radius.sm,
     paddingVertical: 10,
     alignItems: "center",
   },
-  roleChipActive: { backgroundColor: "#2F6B3C", borderColor: "#2F6B3C" },
+  roleChipActive: { backgroundColor: colors.brandGreen, borderColor: colors.brandGreen },
   roleChipText: { fontSize: 13, fontWeight: "600", color: "#374151" },
   roleChipTextActive: { color: "#fff" },
   input: {
-    backgroundColor: "#fff",
+    backgroundColor: colors.white,
     borderWidth: 1,
-    borderColor: "#D1D5DB",
-    borderRadius: 8,
+    borderColor: colors.border,
+    borderRadius: radius.sm,
     paddingHorizontal: 14,
     paddingVertical: 12,
     marginBottom: 12,
     fontSize: 15,
+    color: colors.textPrimary,
   },
-  error: { color: "#DC2626", fontSize: 13, marginBottom: 8 },
-  button: {
-    backgroundColor: "#2F6B3C",
-    borderRadius: 8,
-    paddingVertical: 14,
-    alignItems: "center",
-    marginTop: 8,
-  },
-  buttonText: { color: "#fff", fontWeight: "600", fontSize: 15 },
-  link: { color: "#2F6B3C", textAlign: "center", marginTop: 16, fontSize: 13 },
+  error: { color: colors.statusDanger, fontSize: 13, marginBottom: 8 },
+  button: { marginTop: 8 },
+  link: { color: colors.brandGreen, textAlign: "center", marginTop: 16, fontSize: 13, fontWeight: "500" },
 });

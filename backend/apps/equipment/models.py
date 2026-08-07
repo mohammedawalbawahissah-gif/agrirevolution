@@ -1,6 +1,7 @@
 from django.db import models
 
 from apps.accounts.models import User
+from apps.payments.models import Transaction
 
 
 class Equipment(models.Model):
@@ -31,6 +32,10 @@ class EquipmentBooking(models.Model):
         COMPLETED = "completed", "Completed"
         CANCELLED = "cancelled", "Cancelled"
 
+    class DeliveryMethod(models.TextChoices):
+        PICKUP = "pickup", "Farmer Pickup"
+        DELIVERY = "delivery", "Delivery to Farmer"
+
     farmer = models.ForeignKey(User, on_delete=models.CASCADE, related_name="equipment_bookings")
     equipment = models.ForeignKey(Equipment, on_delete=models.CASCADE, related_name="bookings")
     requested_date = models.DateField()
@@ -41,6 +46,16 @@ class EquipmentBooking(models.Model):
         max_length=10,
         choices=[("app", "App"), ("ussd", "USSD"), ("voice", "Voice")],
         default="app",
+    )
+    delivery_method = models.CharField(
+        max_length=10, choices=DeliveryMethod.choices, default=DeliveryMethod.PICKUP,
+    )
+    delivery_location = models.CharField(
+        max_length=255, blank=True, help_text="Where the equipment should be picked up from or delivered to",
+    )
+    payment_channel = models.CharField(
+        max_length=20, choices=Transaction.Channel.choices, blank=True,
+        help_text="Farmer's chosen payment channel for this booking",
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

@@ -1,5 +1,7 @@
 from rest_framework import serializers
 
+from apps.payments.models import Transaction
+
 from .models import Equipment, EquipmentBooking
 
 
@@ -20,11 +22,18 @@ class EquipmentBookingSerializer(serializers.ModelSerializer):
         model = EquipmentBooking
         fields = [
             "id", "farmer", "equipment", "requested_date", "acreage", "status",
-            "total_cost_ghs", "requested_via", "created_at", "updated_at",
+            "total_cost_ghs", "requested_via", "delivery_method", "delivery_location",
+            "payment_channel", "created_at", "updated_at",
         ]
         # farmer is set server-side from the authenticated user (see perform_create).
         # status changes go through EquipmentBookingStatusSerializer (dealer/admin only).
         read_only_fields = ["farmer", "total_cost_ghs", "status", "created_at", "updated_at"]
+
+    def validate_payment_channel(self, value):
+        valid_channels = {choice for choice, _ in Transaction.Channel.choices}
+        if value and value not in valid_channels:
+            raise serializers.ValidationError(f"Must be one of {sorted(valid_channels)}.")
+        return value
 
     def create(self, validated_data):
         equipment = validated_data["equipment"]
@@ -34,12 +43,19 @@ class EquipmentBookingSerializer(serializers.ModelSerializer):
 
 
 class EquipmentBookingStatusSerializer(serializers.ModelSerializer):
-    """Used for dealer/admin requests — the only fields that make sense for them to change."""
+    """Used for dealer/admin requests — the only fields that make sense for them to change.
+    delivery_method/delivery_location/payment_channel are the farmer's choices and stay
+    read-only here so a dealer can't overwrite them while updating status."""
 
     class Meta:
         model = EquipmentBooking
         fields = [
             "id", "farmer", "equipment", "requested_date", "acreage", "status",
-            "total_cost_ghs", "requested_via", "created_at", "updated_at",
+            "total_cost_ghs", "requested_via", "delivery_method", "delivery_location",
+            "payment_channel", "created_at", "updated_at",
         ]
-        read_only_fields = ["farmer", "equipment", "requested_date", "acreage", "total_cost_ghs", "created_at", "updated_at"]
+        read_only_fields = [
+            "farmer", "equipment", "requested_date", "acreage", "total_cost_ghs",
+            "delivery_method", "delivery_location", "payment_channel",
+            "created_at", "updated_at",
+        ]

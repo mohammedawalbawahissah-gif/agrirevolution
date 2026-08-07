@@ -13,7 +13,14 @@ import {
 import { useAuth } from "../context/AuthContext";
 import { useFetch } from "../hooks/useFetch";
 import { apiClient } from "../api/client";
-import type { Paginated, Equipment, EquipmentBooking } from "../types";
+import type { Paginated, Equipment, EquipmentBooking, PaymentChannel } from "../types";
+import { PAYMENT_CHANNEL_LABELS } from "../types";
+
+const PAYMENT_CHANNELS = Object.keys(PAYMENT_CHANNEL_LABELS) as PaymentChannel[];
+const DELIVERY_OPTIONS: { value: "pickup" | "delivery"; label: string }[] = [
+  { value: "pickup", label: "I'll pick it up" },
+  { value: "delivery", label: "Deliver to me" },
+];
 
 export default function EquipmentScreen() {
   const { user } = useAuth();
@@ -30,6 +37,9 @@ export default function EquipmentScreen() {
   const [selected, setSelected] = useState<Equipment | null>(null);
   const [acreage, setAcreage] = useState("");
   const [date, setDate] = useState("");
+  const [deliveryMethod, setDeliveryMethod] = useState<"pickup" | "delivery">("pickup");
+  const [deliveryLocation, setDeliveryLocation] = useState("");
+  const [paymentChannel, setPaymentChannel] = useState<PaymentChannel>("mtn_momo");
   const [isBooking, setIsBooking] = useState(false);
   const [error, setError] = useState("");
 
@@ -46,10 +56,16 @@ export default function EquipmentScreen() {
         requested_date: date,
         acreage: parseFloat(acreage),
         requested_via: "app",
+        delivery_method: deliveryMethod,
+        delivery_location: deliveryLocation || undefined,
+        payment_channel: paymentChannel,
       });
       setSelected(null);
       setAcreage("");
       setDate("");
+      setDeliveryMethod("pickup");
+      setDeliveryLocation("");
+      setPaymentChannel("mtn_momo");
       refetchBookings();
     } catch {
       setError("Could not submit request. Check the date format (YYYY-MM-DD) and try again.");
@@ -65,7 +81,7 @@ export default function EquipmentScreen() {
     try {
       const { data: txn } = await apiClient.post("/payments/transactions/", {
         purpose: "equipment_booking",
-        channel: "mtn_momo",
+        channel: booking.payment_channel || "mtn_momo",
         amount_ghs: booking.total_cost_ghs,
         equipment_booking: booking.id,
       });
@@ -156,6 +172,40 @@ export default function EquipmentScreen() {
               value={date}
               onChangeText={setDate}
             />
+            <Text style={styles.fieldLabel}>Delivery</Text>
+            <View style={styles.pillRow}>
+              {DELIVERY_OPTIONS.map((opt) => (
+                <TouchableOpacity
+                  key={opt.value}
+                  style={[styles.pill, deliveryMethod === opt.value && styles.pillActive]}
+                  onPress={() => setDeliveryMethod(opt.value)}
+                >
+                  <Text style={[styles.pillText, deliveryMethod === opt.value && styles.pillTextActive]}>
+                    {opt.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            <TextInput
+              style={styles.input}
+              placeholder={deliveryMethod === "pickup" ? "Pickup point" : "Delivery location"}
+              value={deliveryLocation}
+              onChangeText={setDeliveryLocation}
+            />
+            <Text style={styles.fieldLabel}>Payment Channel</Text>
+            <View style={styles.pillRow}>
+              {PAYMENT_CHANNELS.map((channel) => (
+                <TouchableOpacity
+                  key={channel}
+                  style={[styles.pill, paymentChannel === channel && styles.pillActive]}
+                  onPress={() => setPaymentChannel(channel)}
+                >
+                  <Text style={[styles.pillText, paymentChannel === channel && styles.pillTextActive]}>
+                    {PAYMENT_CHANNEL_LABELS[channel]}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
             {error ? <Text style={styles.error}>{error}</Text> : null}
             <TouchableOpacity style={styles.bookButton} onPress={handleBook} disabled={isBooking}>
               {isBooking ? <ActivityIndicator color="#fff" /> : <Text style={styles.bookButtonText}>Submit Request</Text>}
@@ -224,5 +274,18 @@ const styles = StyleSheet.create({
     fontSize: 15,
   },
   error: { color: "#DC2626", fontSize: 13, marginBottom: 8 },
+  fieldLabel: { fontSize: 13, fontWeight: "600", color: "#374151", marginBottom: 8 },
+  pillRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 12 },
+  pill: {
+    borderWidth: 1,
+    borderColor: "#D1D5DB",
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    backgroundColor: "#fff",
+  },
+  pillActive: { backgroundColor: "#2F6B3C", borderColor: "#2F6B3C" },
+  pillText: { fontSize: 12, color: "#374151" },
+  pillTextActive: { color: "#fff", fontWeight: "600" },
   cancelText: { textAlign: "center", color: "#6B7280", marginTop: 12, fontSize: 14 },
 });

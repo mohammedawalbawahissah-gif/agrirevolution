@@ -1,9 +1,21 @@
 import { useState } from "react";
-import { View, Text, StyleSheet, FlatList, RefreshControl, TouchableOpacity, ActivityIndicator, Alert } from "react-native";
+import {
+  View,
+  Text,
+  StyleSheet,
+  FlatList,
+  RefreshControl,
+  TouchableOpacity,
+  ActivityIndicator,
+  Alert,
+  Modal,
+  TextInput,
+} from "react-native";
 import { useAuth } from "../../context/AuthContext";
 import { useFetch } from "../../hooks/useFetch";
 import { apiClient } from "../../api/client";
-import type { Paginated, ProduceListing, Order } from "../../types";
+import type { Paginated, PaymentChannel, ProduceListing, Order } from "../../types";
+import { PAYMENT_CHANNEL_LABELS } from "../../types";
 
 export default function BrowseProduceScreen() {
   const { user } = useAuth();
@@ -18,25 +30,46 @@ export default function BrowseProduceScreen() {
     [user?.id]
   );
 
-  const [placingOrderFor, setPlacingOrderFor] = useState<number | null>(null);
+  const [orderingListing, setOrderingListing] = useState<ProduceListing | null>(null);
+  const [deliveryMethod, setDeliveryMethod] = useState<"pickup" | "delivery">("pickup");
+  const [deliveryAddress, setDeliveryAddress] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState<PaymentChannel | "">("");
+  const [busyId, setBusyId] = useState<number | null>(null);
   const [error, setError] = useState("");
   const [paymentMessage, setPaymentMessage] = useState<Record<number, string>>({});
 
-  async function handlePlaceOrder(listing: ProduceListing) {
+  function openOrderModal(listing: ProduceListing) {
     setError("");
-    setPlacingOrderFor(listing.id);
+    setOrderingListing(listing);
+    setDeliveryMethod(listing.delivery_method === "delivery" ? "delivery" : "pickup");
+    setDeliveryAddress("");
+    setPaymentMethod(listing.accepted_payment_methods[0] ?? "");
+  }
+
+  async function handlePlaceOrder() {
+    if (!orderingListing) return;
+    setError("");
+    if (deliveryMethod === "delivery" && !deliveryAddress.trim()) {
+      setError("Delivery address is required for delivery orders.");
+      return;
+    }
+    setBusyId(orderingListing.id);
     try {
-      const fallbackPrice = listing.fair_price_band_low_ghs ?? "0";
+      const fallbackPrice = orderingListing.fair_price_band_low_ghs ?? "0";
       await apiClient.post("/marketplace/orders/", {
-        listing: listing.id,
+        listing: orderingListing.id,
         agreed_price_ghs: fallbackPrice,
+        delivery_method: deliveryMethod,
+        delivery_address: deliveryMethod === "delivery" ? deliveryAddress : undefined,
+        payment_method: paymentMethod || undefined,
       });
+      setOrderingListing(null);
       refetchListings();
       refetchOrders();
     } catch {
       setError("Could not place order. Please try again.");
     } finally {
-      setPlacingOrderFor(null);
+      setBusyId(null);
     }
   }
 
@@ -48,22 +81,22 @@ export default function BrowseProduceScreen() {
   }
 
   async function cancelOrder(order: Order) {
-    setPlacingOrderFor(order.id);
+    setBusyId(order.id);
     try {
       await apiClient.patch(`/marketplace/orders/${order.id}/`, { status: "cancelled" });
       refetchOrders();
     } finally {
-      setPlacingOrderFor(null);
+      setBusyId(null);
     }
   }
 
   async function handlePay(order: Order) {
-    setPlacingOrderFor(order.id);
+    setBusyId(order.id);
     setPaymentMessage((m) => ({ ...m, [order.id]: "" }));
     try {
       const { data: txn } = await apiClient.post("/payments/transactions/", {
         purpose: "produce_sale",
-        channel: "mtn_momo",
+        channel: order.payment_method || "mtn_momo",
         amount_ghs: order.agreed_price_ghs,
         produce_order: order.id,
       });
@@ -72,7 +105,7 @@ export default function BrowseProduceScreen() {
     } catch {
       setPaymentMessage((m) => ({ ...m, [order.id]: "Payment could not be started. Try again." }));
     } finally {
-      setPlacingOrderFor(null);
+      setBusyId(null);
     }
   }
 
@@ -101,12 +134,17 @@ export default function BrowseProduceScreen() {
                 ? ` · GHS ${item.fair_price_band_low_ghs}–${item.fair_price_band_high_ghs}`
                 : ""}
             </Text>
+            {item.delivery_location ? (
+              <Text style={styles.cardMeta}>
+                {item.delivery_method.replace("_", " ")} · {item.delivery_location}
+              </Text>
+            ) : null}
             <TouchableOpacity
               style={styles.orderButton}
-              onPress={() => handlePlaceOrder(item)}
-              disabled={placingOrderFor === item.id}
+              onPress={() => openOrderModal(item)}
+              disabled={busyId === item.id}
             >
-              {placingOrderFor === item.id ? (
+              {busyId === item.id ? (
                 <ActivityIndicator color="#fff" />
               ) : (
                 <Text style={styles.orderButtonText}>Place Order</Text>
@@ -128,6 +166,10 @@ export default function BrowseProduceScreen() {
               <View key={o.id} style={styles.orderRow}>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.orderText}>Order #{o.id} — GHS {o.agreed_price_ghs}</Text>
+                  <Text style={styles.paymentMessage}>
+                    {o.delivery_method}
+                    {o.delivery_method === "delivery" && o.delivery_address ? ` · ${o.delivery_address}` : ""}
+                  </Text>
                   {paymentMessage[o.id] ? (
                     <Text style={styles.paymentMessage}>{paymentMessage[o.id]}</Text>
                   ) : null}
@@ -135,12 +177,12 @@ export default function BrowseProduceScreen() {
                 <View style={styles.orderRight}>
                   <Text style={styles.orderStatus}>{o.status}</Text>
                   {o.status === "accepted" && (
-                    <TouchableOpacity onPress={() => handlePay(o)} disabled={placingOrderFor === o.id}>
+                    <TouchableOpacity onPress={() => handlePay(o)} disabled={busyId === o.id}>
                       <Text style={styles.payLink}>Pay via MoMo</Text>
                     </TouchableOpacity>
                   )}
                   {(o.status === "pending" || o.status === "accepted") && (
-                    <TouchableOpacity onPress={() => confirmCancel(o)} disabled={placingOrderFor === o.id}>
+                    <TouchableOpacity onPress={() => confirmCancel(o)} disabled={busyId === o.id}>
                       <Text style={styles.cancelLink}>Cancel</Text>
                     </TouchableOpacity>
                   )}
@@ -151,6 +193,80 @@ export default function BrowseProduceScreen() {
           </View>
         }
       />
+
+      <Modal visible={!!orderingListing} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>
+              Order {orderingListing?.quantity_kg}kg {orderingListing?.crop}
+            </Text>
+
+            {orderingListing?.delivery_method === "both" ? (
+              <>
+                <Text style={styles.fieldLabel}>Delivery</Text>
+                <View style={styles.pillRow}>
+                  {(["pickup", "delivery"] as const).map((opt) => (
+                    <TouchableOpacity
+                      key={opt}
+                      style={[styles.pill, deliveryMethod === opt && styles.pillActive]}
+                      onPress={() => setDeliveryMethod(opt)}
+                    >
+                      <Text style={[styles.pillText, deliveryMethod === opt && styles.pillTextActive]}>
+                        {opt === "pickup" ? "Pickup" : "Delivery"}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </>
+            ) : (
+              <Text style={styles.cardMeta}>{orderingListing?.delivery_method} only</Text>
+            )}
+
+            {deliveryMethod === "delivery" && (
+              <TextInput
+                style={styles.input}
+                placeholder="Delivery address"
+                value={deliveryAddress}
+                onChangeText={setDeliveryAddress}
+              />
+            )}
+
+            <Text style={styles.fieldLabel}>Payment Method</Text>
+            <View style={styles.pillRow}>
+              {(orderingListing?.accepted_payment_methods ?? []).map((channel) => (
+                <TouchableOpacity
+                  key={channel}
+                  style={[styles.pill, paymentMethod === channel && styles.pillActive]}
+                  onPress={() => setPaymentMethod(channel)}
+                >
+                  <Text style={[styles.pillText, paymentMethod === channel && styles.pillTextActive]}>
+                    {PAYMENT_CHANNEL_LABELS[channel]}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+              {(orderingListing?.accepted_payment_methods.length ?? 0) === 0 && (
+                <Text style={styles.cardMeta}>Not specified by farmer</Text>
+              )}
+            </View>
+
+            {error ? <Text style={styles.error}>{error}</Text> : null}
+            <TouchableOpacity
+              style={styles.orderButton}
+              onPress={handlePlaceOrder}
+              disabled={busyId === orderingListing?.id}
+            >
+              {busyId === orderingListing?.id ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.orderButtonText}>Place Order</Text>
+              )}
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => setOrderingListing(null)}>
+              <Text style={styles.cancelText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -198,4 +314,31 @@ const styles = StyleSheet.create({
   orderStatus: { fontSize: 12, color: "#6B7280", textTransform: "capitalize" },
   payLink: { fontSize: 12, color: "#2F6B3C", fontWeight: "600" },
   cancelLink: { fontSize: 12, color: "#DC2626", fontWeight: "600" },
+  modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.4)", justifyContent: "flex-end" },
+  modalContent: { backgroundColor: "#fff", borderTopLeftRadius: 16, borderTopRightRadius: 16, padding: 24 },
+  modalTitle: { fontSize: 18, fontWeight: "700", marginBottom: 16 },
+  input: {
+    backgroundColor: "#F9FAFB",
+    borderWidth: 1,
+    borderColor: "#D1D5DB",
+    borderRadius: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    marginBottom: 12,
+    fontSize: 15,
+  },
+  fieldLabel: { fontSize: 13, fontWeight: "600", color: "#374151", marginBottom: 8 },
+  pillRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 12 },
+  pill: {
+    borderWidth: 1,
+    borderColor: "#D1D5DB",
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    backgroundColor: "#fff",
+  },
+  pillActive: { backgroundColor: "#2F6B3C", borderColor: "#2F6B3C" },
+  pillText: { fontSize: 12, color: "#374151" },
+  pillTextActive: { color: "#fff", fontWeight: "600" },
+  cancelText: { textAlign: "center", color: "#6B7280", marginTop: 12, fontSize: 14 },
 });

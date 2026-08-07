@@ -1,6 +1,11 @@
 import { useState, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
+import { Sprout } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
+import Button from "../components/ui/Button";
+
+const inputClass =
+  "w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-green focus:border-transparent";
 
 export default function Login() {
   const [username, setUsername] = useState("");
@@ -25,50 +30,54 @@ export default function Login() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
-      <div className="w-full max-w-sm bg-white rounded-lg shadow p-8">
-        <h1 className="text-2xl font-bold text-brand-green mb-1">AgriRevolution</h1>
-        <p className="text-gray-500 text-sm mb-6">Sign in to your account</p>
-
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Username</label>
-            <input
-              type="text"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              required
-              className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-green"
-            />
+    <div className="min-h-screen flex items-center justify-center bg-brand-cream px-4">
+      <div className="w-full max-w-sm">
+        <div className="flex justify-center mb-5">
+          <div className="w-11 h-11 rounded-full bg-brand-green-light flex items-center justify-center">
+            <Sprout size={20} className="text-brand-green" />
           </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-green"
-            />
-          </div>
+        </div>
 
-          {error && <p className="text-sm text-red-600">{error}</p>}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-8">
+          <h1 className="text-page-title text-center">AgriRevolution</h1>
+          <p className="text-page-subtitle text-center mb-6">Sign in to your account</p>
 
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            className="w-full bg-brand-green text-white rounded-md py-2 font-medium hover:opacity-90 disabled:opacity-50"
-          >
-            {isSubmitting ? "Signing in..." : "Sign in"}
-          </button>
-        </form>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Username</label>
+              <input
+                type="text"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                required
+                className={inputClass}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                className={inputClass}
+              />
+            </div>
 
-        <p className="text-sm text-gray-500 mt-4 text-center">
-          Don't have an account?{" "}
-          <a href="/register" className="text-brand-green font-medium">
-            Register
-          </a>
-        </p>
+            {error && <p className="text-sm text-status-danger">{error}</p>}
+
+            <Button type="submit" isLoading={isSubmitting} className="w-full">
+              {isSubmitting ? "Signing in..." : "Sign in"}
+            </Button>
+          </form>
+
+          <p className="text-sm text-gray-500 mt-4 text-center">
+            Don't have an account?{" "}
+            <a href="/register" className="text-brand-green font-medium">
+              Register
+            </a>
+          </p>
+        </div>
       </div>
     </div>
   );

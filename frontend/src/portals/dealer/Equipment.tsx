@@ -1,11 +1,18 @@
 import { useState, type FormEvent } from "react";
-import { Trash2, PauseCircle, PlayCircle } from "lucide-react";
+import { Trash2, PauseCircle, PlayCircle, Tractor } from "lucide-react";
 import { useFetch } from "../../hooks/useFetch";
 import { useAuth } from "../../context/AuthContext";
 import { apiClient } from "../../api/client";
+import { useToast } from "../../context/ToastContext";
+import { useConfirm } from "../../context/ConfirmContext";
+import StatusBadge from "../../components/ui/StatusBadge";
+import EmptyState from "../../components/ui/EmptyState";
+import Button from "../../components/ui/Button";
 import type { Paginated, Equipment } from "../../types";
 
 const CATEGORIES = ["ploughing", "planting", "harvesting", "spraying", "transport"] as const;
+const inputClass =
+  "w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-green focus:border-transparent";
 
 export default function DealerEquipment() {
   const { user } = useAuth();
@@ -14,6 +21,8 @@ export default function DealerEquipment() {
     isLoading: equipmentLoading,
     refetch: refetchEquipment,
   } = useFetch<Paginated<Equipment>>(user ? `/equipment/equipment/?dealer=${user.id}` : null, [user?.id]);
+  const toast = useToast();
+  const confirm = useConfirm();
 
   const [form, setForm] = useState({
     name: "",
@@ -34,6 +43,7 @@ export default function DealerEquipment() {
         ...form,
         rate_per_acre_ghs: parseFloat(form.rate_per_acre_ghs),
       });
+      toast.success(`${form.name} added`);
       setForm({ name: "", category: "ploughing", rate_per_acre_ghs: "", description: "" });
       refetchEquipment();
     } catch {
@@ -47,18 +57,31 @@ export default function DealerEquipment() {
     setBusyId(item.id);
     try {
       await apiClient.patch(`/equipment/equipment/${item.id}/`, { is_available: !item.is_available });
+      toast.success(item.is_available ? `${item.name} paused` : `${item.name} reactivated`);
       refetchEquipment();
+    } catch {
+      toast.error("Couldn't update this listing.");
     } finally {
       setBusyId(null);
     }
   }
 
   async function deleteEquipment(item: Equipment) {
-    if (!confirm(`Delete "${item.name}"? This cannot be undone.`)) return;
+    const ok = await confirm({
+      title: `Delete "${item.name}"?`,
+      description: "This permanently removes the listing and cannot be undone.",
+      confirmLabel: "Delete",
+      tone: "danger",
+    });
+    if (!ok) return;
+
     setBusyId(item.id);
     try {
       await apiClient.delete(`/equipment/equipment/${item.id}/`);
+      toast.success(`${item.name} deleted`);
       refetchEquipment();
+    } catch {
+      toast.error("Couldn't delete this listing.");
     } finally {
       setBusyId(null);
     }
@@ -67,12 +90,12 @@ export default function DealerEquipment() {
   return (
     <div className="p-8 max-w-4xl mx-auto space-y-8">
       <div>
-        <h1 className="text-2xl font-bold">Equipment</h1>
-        <p className="text-sm text-gray-500 mt-1">List and manage your mechanization equipment</p>
+        <h1 className="text-page-title">Equipment</h1>
+        <p className="text-page-subtitle">List and manage your mechanization equipment</p>
       </div>
 
       <section className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-        <h2 className="font-semibold mb-4">List New Equipment</h2>
+        <h2 className="text-section-title mb-4">List New Equipment</h2>
         <form onSubmit={handleAddEquipment} className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Equipment name</label>
@@ -80,7 +103,7 @@ export default function DealerEquipment() {
               required
               value={form.name}
               onChange={(e) => setForm({ ...form, name: e.target.value })}
-              className="w-full border border-gray-300 rounded-md px-3 py-2"
+              className={inputClass}
               placeholder="e.g. Massey Ferguson Plough"
             />
           </div>
@@ -89,7 +112,7 @@ export default function DealerEquipment() {
             <select
               value={form.category}
               onChange={(e) => setForm({ ...form, category: e.target.value as typeof form.category })}
-              className="w-full border border-gray-300 rounded-md px-3 py-2"
+              className={inputClass}
             >
               {CATEGORIES.map((c) => (
                 <option key={c} value={c}>
@@ -106,7 +129,7 @@ export default function DealerEquipment() {
               step="0.01"
               value={form.rate_per_acre_ghs}
               onChange={(e) => setForm({ ...form, rate_per_acre_ghs: e.target.value })}
-              className="w-full border border-gray-300 rounded-md px-3 py-2"
+              className={inputClass}
             />
           </div>
           <div>
@@ -114,64 +137,64 @@ export default function DealerEquipment() {
             <input
               value={form.description}
               onChange={(e) => setForm({ ...form, description: e.target.value })}
-              className="w-full border border-gray-300 rounded-md px-3 py-2"
+              className={inputClass}
             />
           </div>
-          {error && <p className="text-sm text-red-600 md:col-span-2">{error}</p>}
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            className="md:col-span-2 bg-brand-green text-white rounded-md py-2 font-medium hover:opacity-90 disabled:opacity-50"
-          >
+          {error && <p className="text-sm text-status-danger md:col-span-2">{error}</p>}
+          <Button type="submit" isLoading={isSubmitting} className="md:col-span-2">
             {isSubmitting ? "Adding..." : "Add Equipment"}
-          </button>
+          </Button>
         </form>
       </section>
 
       <section className="bg-white rounded-xl shadow-sm border border-gray-100">
-        <div className="px-5 py-4 border-b">
-          <h2 className="font-semibold">My Equipment</h2>
+        <div className="px-5 py-4 border-b border-gray-100">
+          <h2 className="text-section-title">My Equipment</h2>
         </div>
-        <div className="divide-y">
-          {equipmentLoading && <p className="px-5 py-4 text-sm text-gray-400">Loading...</p>}
-          {equipment?.results.map((eq) => (
-            <div
-              key={eq.id}
-              className={`px-5 py-3 flex items-center justify-between text-sm ${busyId === eq.id ? "opacity-50" : ""}`}
-            >
-              <div>
-                <span className="font-medium">{eq.name}</span> <span className="text-gray-400">— {eq.category}</span>
-                <p className="text-gray-500 text-xs mt-0.5">
-                  GHS {eq.rate_per_acre_ghs}/acre ·{" "}
-                  <span className={eq.is_available ? "text-brand-green" : "text-gray-400"}>
-                    {eq.is_available ? "Available" : "Paused"}
-                  </span>
-                </p>
+        {equipmentLoading ? (
+          <p className="px-5 py-4 text-sm text-gray-400">Loading...</p>
+        ) : equipment?.results.length ? (
+          <div className="divide-y divide-gray-100">
+            {equipment.results.map((eq) => (
+              <div
+                key={eq.id}
+                className={`px-5 py-3 flex items-center justify-between text-sm ${busyId === eq.id ? "opacity-50" : ""}`}
+              >
+                <div>
+                  <span className="font-medium text-gray-900">{eq.name}</span>{" "}
+                  <span className="text-gray-400">— {eq.category}</span>
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className="text-gray-500 text-xs">GHS {eq.rate_per_acre_ghs}/acre</span>
+                    <StatusBadge
+                      status={eq.is_available ? "Available" : "Paused"}
+                      tone={eq.is_available ? "success" : "neutral"}
+                    />
+                  </div>
+                </div>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => toggleAvailable(eq)}
+                    disabled={busyId === eq.id}
+                    className="text-gray-400 hover:text-brand-green transition-colors"
+                    title={eq.is_available ? "Pause listing" : "Reactivate listing"}
+                  >
+                    {eq.is_available ? <PauseCircle size={18} /> : <PlayCircle size={18} />}
+                  </button>
+                  <button
+                    onClick={() => deleteEquipment(eq)}
+                    disabled={busyId === eq.id}
+                    className="text-gray-400 hover:text-status-danger transition-colors"
+                    title="Delete"
+                  >
+                    <Trash2 size={18} />
+                  </button>
+                </div>
               </div>
-              <div className="flex gap-3">
-                <button
-                  onClick={() => toggleAvailable(eq)}
-                  disabled={busyId === eq.id}
-                  className="text-gray-400 hover:text-brand-green"
-                  title={eq.is_available ? "Pause listing" : "Reactivate listing"}
-                >
-                  {eq.is_available ? <PauseCircle size={18} /> : <PlayCircle size={18} />}
-                </button>
-                <button
-                  onClick={() => deleteEquipment(eq)}
-                  disabled={busyId === eq.id}
-                  className="text-gray-400 hover:text-red-600"
-                  title="Delete"
-                >
-                  <Trash2 size={18} />
-                </button>
-              </div>
-            </div>
-          ))}
-          {equipment?.results.length === 0 && (
-            <p className="px-5 py-4 text-sm text-gray-400">No equipment listed yet — add one above.</p>
-          )}
-        </div>
+            ))}
+          </div>
+        ) : (
+          <EmptyState icon={Tractor} title="No equipment listed yet" description="Add your first piece of equipment above." />
+        )}
       </section>
     </div>
   );

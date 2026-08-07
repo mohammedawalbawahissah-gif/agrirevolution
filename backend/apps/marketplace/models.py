@@ -1,6 +1,7 @@
 from django.db import models
 
 from apps.accounts.models import User
+from apps.payments.models import Transaction
 
 
 class ProduceListing(models.Model):
@@ -16,6 +17,11 @@ class ProduceListing(models.Model):
         SOLD = "sold", "Sold"
         EXPIRED = "expired", "Expired"
 
+    class DeliveryMethod(models.TextChoices):
+        PICKUP = "pickup", "Pickup Only"
+        DELIVERY = "delivery", "Delivery Only"
+        BOTH = "both", "Pickup or Delivery"
+
     farmer = models.ForeignKey(User, on_delete=models.CASCADE, related_name="produce_listings")
     crop = models.CharField(max_length=120)
     quantity_kg = models.DecimalField(max_digits=9, decimal_places=2)
@@ -29,6 +35,16 @@ class ProduceListing(models.Model):
         max_length=10,
         choices=[("app", "App"), ("ussd", "USSD"), ("voice", "Voice")],
         default="app",
+    )
+    delivery_method = models.CharField(
+        max_length=10, choices=DeliveryMethod.choices, default=DeliveryMethod.PICKUP,
+    )
+    delivery_location = models.CharField(
+        max_length=255, blank=True, help_text="Pickup point, or the area this farmer can deliver to",
+    )
+    accepted_payment_methods = models.JSONField(
+        default=list, blank=True,
+        help_text="Payment channels this farmer accepts, e.g. ['mtn_momo', 'card']. Values from Transaction.Channel.",
     )
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -47,10 +63,24 @@ class Order(models.Model):
         DELIVERED = "delivered", "Delivered"
         CANCELLED = "cancelled", "Cancelled"
 
+    class DeliveryMethod(models.TextChoices):
+        PICKUP = "pickup", "Pickup"
+        DELIVERY = "delivery", "Delivery"
+
     listing = models.ForeignKey(ProduceListing, on_delete=models.CASCADE, related_name="orders")
     buyer = models.ForeignKey(User, on_delete=models.CASCADE, related_name="orders")
     agreed_price_ghs = models.DecimalField(max_digits=9, decimal_places=2)
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.PENDING)
+    delivery_method = models.CharField(
+        max_length=10, choices=DeliveryMethod.choices, default=DeliveryMethod.PICKUP,
+    )
+    delivery_address = models.CharField(
+        max_length=255, blank=True, help_text="Required when delivery_method is 'delivery'",
+    )
+    payment_method = models.CharField(
+        max_length=20, choices=Transaction.Channel.choices, blank=True,
+        help_text="Buyer's chosen payment channel for this order",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

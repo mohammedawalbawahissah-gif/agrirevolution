@@ -1,27 +1,27 @@
 import { useState } from "react";
+import { ClipboardList } from "lucide-react";
 import { useFetch } from "../../hooks/useFetch";
 import { apiClient } from "../../api/client";
+import { useToast } from "../../context/ToastContext";
+import StatusBadge from "../../components/ui/StatusBadge";
+import EmptyState from "../../components/ui/EmptyState";
 import type { Paginated, Order } from "../../types";
 
 const STATUSES: Order["status"][] = ["pending", "accepted", "paid", "delivered", "cancelled"];
 
-const STATUS_STYLES: Record<string, string> = {
-  pending: "bg-amber-50 text-amber-700",
-  accepted: "bg-blue-50 text-blue-700",
-  paid: "bg-purple-50 text-purple-700",
-  delivered: "bg-green-50 text-brand-green",
-  cancelled: "bg-red-50 text-red-700",
-};
-
 export default function AdminOrders() {
   const { data: orders, isLoading, refetch } = useFetch<Paginated<Order>>("/marketplace/orders/");
   const [busyId, setBusyId] = useState<number | null>(null);
+  const toast = useToast();
 
   async function updateStatus(order: Order, status: Order["status"]) {
     setBusyId(order.id);
     try {
       await apiClient.patch(`/marketplace/orders/${order.id}/`, { status });
+      toast.success(`Order #${order.id} marked ${status}`);
       refetch();
+    } catch {
+      toast.error("Couldn't update this order.");
     } finally {
       setBusyId(null);
     }
@@ -30,50 +30,55 @@ export default function AdminOrders() {
   return (
     <div className="p-8 max-w-6xl mx-auto">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold">Orders</h1>
-        <p className="text-sm text-gray-500 mt-1">All produce orders across every buyer</p>
+        <h1 className="text-page-title">Orders</h1>
+        <p className="text-page-subtitle">All produce orders across every buyer</p>
       </div>
 
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-        <table className="w-full text-sm">
-          <thead className="bg-gray-50 text-gray-500 text-xs uppercase">
-            <tr>
-              <th className="text-left px-5 py-3 font-medium">Order</th>
-              <th className="text-left px-5 py-3 font-medium">Listing</th>
-              <th className="text-left px-5 py-3 font-medium">Buyer</th>
-              <th className="text-left px-5 py-3 font-medium">Price</th>
-              <th className="text-left px-5 py-3 font-medium">Status</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-100">
-            {orders?.results.map((o) => (
-              <tr key={o.id} className={busyId === o.id ? "opacity-50" : ""}>
-                <td className="px-5 py-3 font-medium">#{o.id}</td>
-                <td className="px-5 py-3 text-gray-600">Listing #{o.listing}</td>
-                <td className="px-5 py-3 text-gray-600">Buyer #{o.buyer}</td>
-                <td className="px-5 py-3 text-gray-600">GHS {o.agreed_price_ghs}</td>
-                <td className="px-5 py-3">
-                  <select
-                    value={o.status}
-                    disabled={busyId === o.id}
-                    onChange={(e) => updateStatus(o, e.target.value as Order["status"])}
-                    className={`text-xs font-medium px-2 py-1 rounded-full border-0 capitalize ${STATUS_STYLES[o.status]}`}
-                  >
-                    {STATUSES.map((s) => (
-                      <option key={s} value={s}>
-                        {s}
-                      </option>
-                    ))}
-                  </select>
-                </td>
+        {orders?.results.length ? (
+          <table className="w-full text-sm">
+            <thead className="bg-gray-50 text-gray-500 text-xs uppercase">
+              <tr>
+                <th className="text-left px-5 py-3 font-medium">Order</th>
+                <th className="text-left px-5 py-3 font-medium">Listing</th>
+                <th className="text-left px-5 py-3 font-medium">Buyer</th>
+                <th className="text-left px-5 py-3 font-medium">Price</th>
+                <th className="text-left px-5 py-3 font-medium">Status</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-        {!isLoading && orders?.results.length === 0 && (
-          <p className="px-5 py-8 text-center text-sm text-gray-400">No orders yet.</p>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {orders.results.map((o) => (
+                <tr key={o.id} className={busyId === o.id ? "opacity-50" : ""}>
+                  <td className="px-5 py-3 font-medium text-gray-900">#{o.id}</td>
+                  <td className="px-5 py-3 text-gray-600">Listing #{o.listing}</td>
+                  <td className="px-5 py-3 text-gray-600">Buyer #{o.buyer}</td>
+                  <td className="px-5 py-3 text-gray-600">GHS {o.agreed_price_ghs}</td>
+                  <td className="px-5 py-3">
+                    <div className="flex items-center gap-2">
+                      <StatusBadge status={o.status} />
+                      <select
+                        value={o.status}
+                        disabled={busyId === o.id}
+                        onChange={(e) => updateStatus(o, e.target.value as Order["status"])}
+                        className="text-xs border border-gray-200 rounded-md px-2 py-1 capitalize focus:outline-none focus:ring-2 focus:ring-brand-green"
+                      >
+                        {STATUSES.map((s) => (
+                          <option key={s} value={s}>
+                            {s}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ) : !isLoading ? (
+          <EmptyState icon={ClipboardList} title="No orders yet" description="Buyer orders will appear here." />
+        ) : (
+          <p className="px-5 py-8 text-center text-sm text-gray-400">Loading…</p>
         )}
-        {isLoading && <p className="px-5 py-8 text-center text-sm text-gray-400">Loading…</p>}
       </div>
     </div>
   );

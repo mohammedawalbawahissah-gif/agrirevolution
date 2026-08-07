@@ -1,5 +1,6 @@
 from django.db.models import Count, Sum
-from rest_framework import generics, viewsets
+from rest_framework import generics, mixins, viewsets
+from rest_framework.decorators import action
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -9,7 +10,7 @@ from apps.marketplace.models import Order, ProduceListing
 from apps.payments.models import Transaction
 
 from .models import BuyerProfile, DealerProfile, FarmerProfile, User
-from .permissions import IsAdminRole
+from .permissions import IsAdminRole, IsOwnerOrAdmin
 from .serializers import (
     AdminUserSerializer,
     BuyerProfileSerializer,
@@ -52,22 +53,72 @@ class UserViewSet(viewsets.ModelViewSet):
     filterset_fields = ["role", "district", "community", "is_verified"]
 
 
-class FarmerProfileViewSet(viewsets.ModelViewSet):
+class BaseProfileViewSet(
+    mixins.ListModelMixin,
+    mixins.RetrieveModelMixin,
+    mixins.UpdateModelMixin,
+    mixins.DestroyModelMixin,
+    viewsets.GenericViewSet,
+):
+    """
+    Shared behavior for the three role-profile viewsets.
+
+    There's intentionally no create action here: a profile is always
+    provisioned lazily (get_or_create) the first time its owner hits /me/,
+    the same way the notifications app treats a user's inbox as always-
+    present rather than something to be POSTed into existence. That also
+    sidesteps having a writable `user` field on these serializers, which
+    would let one user attach a profile to another user's account.
+
+    Listing/retrieving is scoped to the requester's own profile — admins
+    are the only ones who can browse everyone's — and only the owning user
+    or an admin can update/delete a profile (mirrors IsOwnerOrAdmin usage
+    elsewhere, e.g. listings/bookings).
+    """
+
+    owner_field = "user"
+    profile_model = None
+
+    def get_permissions(self):
+        if self.action in ("update", "partial_update", "destroy"):
+            return [IsAuthenticated(), IsOwnerOrAdmin()]
+        return [IsAuthenticated()]
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        user = self.request.user
+        if user.role == "admin" or user.is_staff:
+            return qs
+        return qs.filter(user=user)
+
+    @action(detail=False, methods=["get", "patch"])
+    def me(self, request):
+        """Get or update the authenticated user's own role profile, creating it on first use."""
+        profile, _ = self.profile_model.objects.get_or_create(user=request.user)
+        if request.method == "GET":
+            return Response(self.get_serializer(profile).data)
+        serializer = self.get_serializer(profile, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)
+
+
+class FarmerProfileViewSet(BaseProfileViewSet):
     queryset = FarmerProfile.objects.select_related("user").all()
     serializer_class = FarmerProfileSerializer
-    permission_classes = [IsAuthenticated]
+    profile_model = FarmerProfile
 
 
-class DealerProfileViewSet(viewsets.ModelViewSet):
+class DealerProfileViewSet(BaseProfileViewSet):
     queryset = DealerProfile.objects.select_related("user").all()
     serializer_class = DealerProfileSerializer
-    permission_classes = [IsAuthenticated]
+    profile_model = DealerProfile
 
 
-class BuyerProfileViewSet(viewsets.ModelViewSet):
+class BuyerProfileViewSet(BaseProfileViewSet):
     queryset = BuyerProfile.objects.select_related("user").all()
     serializer_class = BuyerProfileSerializer
-    permission_classes = [IsAuthenticated]
+    profile_model = BuyerProfile
 
 
 class AdminStatsView(APIView):

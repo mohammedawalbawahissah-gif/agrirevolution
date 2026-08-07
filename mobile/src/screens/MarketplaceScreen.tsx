@@ -13,7 +13,15 @@ import {
 import { useAuth } from "../context/AuthContext";
 import { useFetch } from "../hooks/useFetch";
 import { apiClient } from "../api/client";
-import type { Paginated, ProduceListing } from "../types";
+import type { Paginated, PaymentChannel, ProduceListing } from "../types";
+import { PAYMENT_CHANNEL_LABELS } from "../types";
+
+const PAYMENT_CHANNELS = Object.keys(PAYMENT_CHANNEL_LABELS) as PaymentChannel[];
+const DELIVERY_OPTIONS: { value: "pickup" | "delivery" | "both"; label: string }[] = [
+  { value: "pickup", label: "Pickup Only" },
+  { value: "delivery", label: "Delivery Only" },
+  { value: "both", label: "Pickup or Delivery" },
+];
 
 export default function MarketplaceScreen() {
   const { user } = useAuth();
@@ -30,8 +38,17 @@ export default function MarketplaceScreen() {
   const [crop, setCrop] = useState("");
   const [quantity, setQuantity] = useState("");
   const [photoUrl, setPhotoUrl] = useState("");
+  const [deliveryMethod, setDeliveryMethod] = useState<"pickup" | "delivery" | "both">("pickup");
+  const [deliveryLocation, setDeliveryLocation] = useState("");
+  const [acceptedPaymentMethods, setAcceptedPaymentMethods] = useState<PaymentChannel[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
+
+  function togglePaymentMethod(channel: PaymentChannel) {
+    setAcceptedPaymentMethods((prev) =>
+      prev.includes(channel) ? prev.filter((c) => c !== channel) : [...prev, channel]
+    );
+  }
 
   async function handleAddListing() {
     if (!user) return;
@@ -43,10 +60,16 @@ export default function MarketplaceScreen() {
         quantity_kg: parseFloat(quantity),
         photo_url: photoUrl || undefined,
         listed_via: "app",
+        delivery_method: deliveryMethod,
+        delivery_location: deliveryLocation || undefined,
+        accepted_payment_methods: acceptedPaymentMethods,
       });
       setCrop("");
       setQuantity("");
       setPhotoUrl("");
+      setDeliveryMethod("pickup");
+      setDeliveryLocation("");
+      setAcceptedPaymentMethods([]);
       setModalVisible(false);
       refetch();
     } catch {
@@ -85,6 +108,11 @@ export default function MarketplaceScreen() {
               </Text>
             )}
             {item.ai_grading_notes ? <Text style={styles.cardNotes}>{item.ai_grading_notes}</Text> : null}
+            {item.delivery_location ? (
+              <Text style={styles.cardNotes}>
+                {item.delivery_method.replace("_", " ")} · {item.delivery_location}
+              </Text>
+            ) : null}
           </View>
         )}
         ListEmptyComponent={
@@ -119,6 +147,45 @@ export default function MarketplaceScreen() {
               value={photoUrl}
               onChangeText={setPhotoUrl}
             />
+            <Text style={styles.fieldLabel}>Delivery</Text>
+            <View style={styles.pillRow}>
+              {DELIVERY_OPTIONS.map((opt) => (
+                <TouchableOpacity
+                  key={opt.value}
+                  style={[styles.pill, deliveryMethod === opt.value && styles.pillActive]}
+                  onPress={() => setDeliveryMethod(opt.value)}
+                >
+                  <Text style={[styles.pillText, deliveryMethod === opt.value && styles.pillTextActive]}>
+                    {opt.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            <TextInput
+              style={styles.input}
+              placeholder={deliveryMethod === "pickup" ? "Pickup location" : "Location / delivery area"}
+              value={deliveryLocation}
+              onChangeText={setDeliveryLocation}
+            />
+            <Text style={styles.fieldLabel}>Accepted Payment Methods</Text>
+            <View style={styles.pillRow}>
+              {PAYMENT_CHANNELS.map((channel) => (
+                <TouchableOpacity
+                  key={channel}
+                  style={[styles.pill, acceptedPaymentMethods.includes(channel) && styles.pillActive]}
+                  onPress={() => togglePaymentMethod(channel)}
+                >
+                  <Text
+                    style={[
+                      styles.pillText,
+                      acceptedPaymentMethods.includes(channel) && styles.pillTextActive,
+                    ]}
+                  >
+                    {PAYMENT_CHANNEL_LABELS[channel]}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
             {error ? <Text style={styles.error}>{error}</Text> : null}
             <TouchableOpacity style={styles.submitButton} onPress={handleAddListing} disabled={isSubmitting}>
               {isSubmitting ? (
@@ -193,6 +260,19 @@ const styles = StyleSheet.create({
     fontSize: 15,
   },
   error: { color: "#DC2626", fontSize: 13, marginBottom: 8 },
+  fieldLabel: { fontSize: 13, fontWeight: "600", color: "#374151", marginBottom: 8 },
+  pillRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 12 },
+  pill: {
+    borderWidth: 1,
+    borderColor: "#D1D5DB",
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    backgroundColor: "#fff",
+  },
+  pillActive: { backgroundColor: "#2F6B3C", borderColor: "#2F6B3C" },
+  pillText: { fontSize: 12, color: "#374151" },
+  pillTextActive: { color: "#fff", fontWeight: "600" },
   submitButton: { backgroundColor: "#2F6B3C", borderRadius: 8, paddingVertical: 14, alignItems: "center" },
   submitButtonText: { color: "#fff", fontWeight: "600", fontSize: 15 },
   cancelText: { textAlign: "center", color: "#6B7280", marginTop: 12, fontSize: 14 },

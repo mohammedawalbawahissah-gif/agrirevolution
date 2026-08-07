@@ -2,7 +2,10 @@ import { useState } from "react";
 import { useAuth } from "../../context/AuthContext";
 import { useFetch } from "../../hooks/useFetch";
 import { apiClient } from "../../api/client";
-import type { Paginated, ProduceListing } from "../../types";
+import type { Paginated, PaymentChannel, ProduceListing } from "../../types";
+import { PAYMENT_CHANNEL_LABELS } from "../../types";
+
+const PAYMENT_CHANNELS = Object.keys(PAYMENT_CHANNEL_LABELS) as PaymentChannel[];
 
 export default function MarketplaceTab() {
   const { user } = useAuth();
@@ -16,8 +19,17 @@ export default function MarketplaceTab() {
   const [crop, setCrop] = useState("");
   const [quantity, setQuantity] = useState("");
   const [photoUrl, setPhotoUrl] = useState("");
+  const [deliveryMethod, setDeliveryMethod] = useState<"pickup" | "delivery" | "both">("pickup");
+  const [deliveryLocation, setDeliveryLocation] = useState("");
+  const [acceptedPaymentMethods, setAcceptedPaymentMethods] = useState<PaymentChannel[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
+
+  function togglePaymentMethod(channel: PaymentChannel) {
+    setAcceptedPaymentMethods((prev) =>
+      prev.includes(channel) ? prev.filter((c) => c !== channel) : [...prev, channel]
+    );
+  }
 
   async function handleAddListing() {
     setError("");
@@ -28,10 +40,16 @@ export default function MarketplaceTab() {
         quantity_kg: parseFloat(quantity),
         photo_url: photoUrl || undefined,
         listed_via: "app",
+        delivery_method: deliveryMethod,
+        delivery_location: deliveryLocation || undefined,
+        accepted_payment_methods: acceptedPaymentMethods,
       });
       setCrop("");
       setQuantity("");
       setPhotoUrl("");
+      setDeliveryMethod("pickup");
+      setDeliveryLocation("");
+      setAcceptedPaymentMethods([]);
       setFormOpen(false);
       refetch();
     } catch {
@@ -89,6 +107,52 @@ export default function MarketplaceTab() {
                 placeholder="https://..."
                 className="w-full border border-gray-300 rounded-md px-3 py-2"
               />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Delivery</label>
+              <select
+                value={deliveryMethod}
+                onChange={(e) => setDeliveryMethod(e.target.value as "pickup" | "delivery" | "both")}
+                className="w-full border border-gray-300 rounded-md px-3 py-2 bg-white"
+              >
+                <option value="pickup">Pickup Only</option>
+                <option value="delivery">Delivery Only</option>
+                <option value="both">Pickup or Delivery</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                {deliveryMethod === "pickup" ? "Pickup Location" : "Location / Delivery Area"}
+              </label>
+              <input
+                value={deliveryLocation}
+                onChange={(e) => setDeliveryLocation(e.target.value)}
+                placeholder="e.g. Tamale central market"
+                className="w-full border border-gray-300 rounded-md px-3 py-2"
+              />
+            </div>
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Accepted Payment Methods</label>
+              <div className="flex flex-wrap gap-2">
+                {PAYMENT_CHANNELS.map((channel) => (
+                  <label
+                    key={channel}
+                    className={`text-sm px-3 py-1.5 rounded-full border cursor-pointer ${
+                      acceptedPaymentMethods.includes(channel)
+                        ? "bg-brand-green text-white border-brand-green"
+                        : "bg-white text-gray-700 border-gray-300"
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      className="hidden"
+                      checked={acceptedPaymentMethods.includes(channel)}
+                      onChange={() => togglePaymentMethod(channel)}
+                    />
+                    {PAYMENT_CHANNEL_LABELS[channel]}
+                  </label>
+                ))}
+              </div>
             </div>
           </div>
           {error && <p className="text-sm text-red-600 mt-2">{error}</p>}

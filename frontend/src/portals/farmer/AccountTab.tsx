@@ -1,9 +1,14 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "../../context/AuthContext";
 import { apiClient } from "../../api/client";
+import { useFetch } from "../../hooks/useFetch";
+import type { FarmerProfile } from "../../types";
 
 export default function AccountTab() {
   const { user, refreshUser } = useAuth();
+  const { data: profile, isLoading: isProfileLoading, refetch: refetchProfile } =
+    useFetch<FarmerProfile>("/accounts/farmer-profiles/me/");
+
   const [isEditing, setIsEditing] = useState(false);
   const [form, setForm] = useState({
     first_name: user?.first_name ?? "",
@@ -13,6 +18,27 @@ export default function AccountTab() {
   });
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState("");
+
+  const [isEditingFarm, setIsEditingFarm] = useState(false);
+  const [farmForm, setFarmForm] = useState({
+    farm_size_acres: "",
+    primary_crops: "",
+    gps_latitude: "",
+    gps_longitude: "",
+  });
+  const [isSavingFarm, setIsSavingFarm] = useState(false);
+  const [farmError, setFarmError] = useState("");
+
+  useEffect(() => {
+    if (profile) {
+      setFarmForm({
+        farm_size_acres: profile.farm_size_acres ?? "",
+        primary_crops: profile.primary_crops ?? "",
+        gps_latitude: profile.gps_latitude ?? "",
+        gps_longitude: profile.gps_longitude ?? "",
+      });
+    }
+  }, [profile]);
 
   if (!user) return null;
 
@@ -27,6 +53,25 @@ export default function AccountTab() {
       setError("Could not save changes. Please try again.");
     } finally {
       setIsSaving(false);
+    }
+  }
+
+  async function handleSaveFarm() {
+    setFarmError("");
+    setIsSavingFarm(true);
+    try {
+      await apiClient.patch("/accounts/farmer-profiles/me/", {
+        farm_size_acres: farmForm.farm_size_acres || null,
+        primary_crops: farmForm.primary_crops,
+        gps_latitude: farmForm.gps_latitude || null,
+        gps_longitude: farmForm.gps_longitude || null,
+      });
+      refetchProfile();
+      setIsEditingFarm(false);
+    } catch {
+      setFarmError("Could not save changes. Please try again.");
+    } finally {
+      setIsSavingFarm(false);
     }
   }
 
@@ -45,6 +90,7 @@ export default function AccountTab() {
       </div>
 
       <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-5">
+        <p className="text-sm font-semibold text-gray-700 mb-3">Personal details</p>
         {isEditing ? (
           <div className="space-y-3">
             <div className="grid grid-cols-2 gap-3">
@@ -108,6 +154,91 @@ export default function AccountTab() {
               className="mt-2 text-sm text-brand-green font-medium hover:underline"
             >
               Edit profile
+            </button>
+          </div>
+        )}
+      </div>
+
+      <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-5">
+        <p className="text-sm font-semibold text-gray-700 mb-3">Farm details</p>
+        {isProfileLoading ? (
+          <p className="text-sm text-gray-400">Loading…</p>
+        ) : isEditingFarm ? (
+          <div className="space-y-3">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Farm size (acres)</label>
+              <input
+                type="number"
+                step="0.01"
+                min={0}
+                value={farmForm.farm_size_acres}
+                onChange={(e) => setFarmForm({ ...farmForm, farm_size_acres: e.target.value })}
+                className="w-full border border-gray-300 rounded-md px-3 py-2"
+                placeholder="e.g. 4.5"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Primary crops</label>
+              <input
+                value={farmForm.primary_crops}
+                onChange={(e) => setFarmForm({ ...farmForm, primary_crops: e.target.value })}
+                className="w-full border border-gray-300 rounded-md px-3 py-2"
+                placeholder="e.g. Maize, Soybean"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">GPS latitude</label>
+                <input
+                  type="number"
+                  step="0.000001"
+                  value={farmForm.gps_latitude}
+                  onChange={(e) => setFarmForm({ ...farmForm, gps_latitude: e.target.value })}
+                  className="w-full border border-gray-300 rounded-md px-3 py-2"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">GPS longitude</label>
+                <input
+                  type="number"
+                  step="0.000001"
+                  value={farmForm.gps_longitude}
+                  onChange={(e) => setFarmForm({ ...farmForm, gps_longitude: e.target.value })}
+                  className="w-full border border-gray-300 rounded-md px-3 py-2"
+                />
+              </div>
+            </div>
+            {farmError && <p className="text-sm text-red-600">{farmError}</p>}
+            <div className="flex gap-3 pt-2">
+              <button
+                onClick={handleSaveFarm}
+                disabled={isSavingFarm}
+                className="bg-brand-green text-white text-sm rounded-md px-4 py-2 hover:opacity-90 disabled:opacity-50"
+              >
+                {isSavingFarm ? "Saving…" : "Save Changes"}
+              </button>
+              <button onClick={() => setIsEditingFarm(false)} className="text-sm text-gray-500">
+                Cancel
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            <Row label="Farm size" value={profile?.farm_size_acres ? `${profile.farm_size_acres} acres` : "—"} />
+            <Row label="Primary crops" value={profile?.primary_crops || "—"} />
+            <Row
+              label="GPS location"
+              value={
+                profile?.gps_latitude && profile?.gps_longitude
+                  ? `${profile.gps_latitude}, ${profile.gps_longitude}`
+                  : "—"
+              }
+            />
+            <button
+              onClick={() => setIsEditingFarm(true)}
+              className="mt-2 text-sm text-brand-green font-medium hover:underline"
+            >
+              Edit farm details
             </button>
           </div>
         )}

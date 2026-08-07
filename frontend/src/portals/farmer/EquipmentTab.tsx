@@ -2,7 +2,10 @@ import { useState } from "react";
 import { useAuth } from "../../context/AuthContext";
 import { useFetch } from "../../hooks/useFetch";
 import { apiClient } from "../../api/client";
-import type { Paginated, Equipment, EquipmentBooking } from "../../types";
+import type { Paginated, Equipment, EquipmentBooking, PaymentChannel } from "../../types";
+import { PAYMENT_CHANNEL_LABELS } from "../../types";
+
+const PAYMENT_CHANNELS = Object.keys(PAYMENT_CHANNEL_LABELS) as PaymentChannel[];
 
 export default function EquipmentTab() {
   const { user } = useAuth();
@@ -18,6 +21,9 @@ export default function EquipmentTab() {
   const [selected, setSelected] = useState<Equipment | null>(null);
   const [acreage, setAcreage] = useState("");
   const [date, setDate] = useState("");
+  const [deliveryMethod, setDeliveryMethod] = useState<"pickup" | "delivery">("pickup");
+  const [deliveryLocation, setDeliveryLocation] = useState("");
+  const [paymentChannel, setPaymentChannel] = useState<PaymentChannel>("mtn_momo");
   const [isBooking, setIsBooking] = useState(false);
   const [error, setError] = useState("");
 
@@ -34,10 +40,16 @@ export default function EquipmentTab() {
         requested_date: date,
         acreage: parseFloat(acreage),
         requested_via: "app",
+        delivery_method: deliveryMethod,
+        delivery_location: deliveryLocation || undefined,
+        payment_channel: paymentChannel,
       });
       setSelected(null);
       setAcreage("");
       setDate("");
+      setDeliveryMethod("pickup");
+      setDeliveryLocation("");
+      setPaymentChannel("mtn_momo");
       refetchBookings();
     } catch {
       setError("Could not submit request. Check the details and try again.");
@@ -53,7 +65,7 @@ export default function EquipmentTab() {
     try {
       const { data: txn } = await apiClient.post("/payments/transactions/", {
         purpose: "equipment_booking",
-        channel: "mtn_momo",
+        channel: booking.payment_channel || "mtn_momo",
         amount_ghs: booking.total_cost_ghs,
         equipment_booking: booking.id,
       });
@@ -113,6 +125,36 @@ export default function EquipmentTab() {
               onChange={(e) => setDate(e.target.value)}
               className="w-full border border-gray-300 rounded-md px-3 py-2 mb-3"
             />
+            <label className="block text-sm font-medium text-gray-700 mb-1">Delivery</label>
+            <select
+              value={deliveryMethod}
+              onChange={(e) => setDeliveryMethod(e.target.value as "pickup" | "delivery")}
+              className="w-full border border-gray-300 rounded-md px-3 py-2 mb-3 bg-white"
+            >
+              <option value="pickup">I'll pick it up</option>
+              <option value="delivery">Deliver to me</option>
+            </select>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              {deliveryMethod === "pickup" ? "Pickup Point" : "Delivery Location"}
+            </label>
+            <input
+              value={deliveryLocation}
+              onChange={(e) => setDeliveryLocation(e.target.value)}
+              placeholder="e.g. Bolgatanga farm road"
+              className="w-full border border-gray-300 rounded-md px-3 py-2 mb-3"
+            />
+            <label className="block text-sm font-medium text-gray-700 mb-1">Payment Channel</label>
+            <select
+              value={paymentChannel}
+              onChange={(e) => setPaymentChannel(e.target.value as PaymentChannel)}
+              className="w-full border border-gray-300 rounded-md px-3 py-2 mb-3 bg-white"
+            >
+              {PAYMENT_CHANNELS.map((channel) => (
+                <option key={channel} value={channel}>
+                  {PAYMENT_CHANNEL_LABELS[channel]}
+                </option>
+              ))}
+            </select>
             {error && <p className="text-sm text-red-600 mb-2">{error}</p>}
             <button
               onClick={handleBook}

@@ -1,4 +1,4 @@
-import { LayoutDashboard, Users, Tractor, CalendarCheck, Sprout, ShoppingCart, Receipt } from "lucide-react";
+import { LayoutDashboard, Users, Tractor, CalendarCheck, Sprout, ShoppingCart, Receipt, User as UserIcon } from "lucide-react";
 import PortalShell from "../../components/PortalShell";
 
 const NAV_ITEMS = [
@@ -9,6 +9,7 @@ const NAV_ITEMS = [
   { to: "/admin/listings", label: "Listings", icon: Sprout },
   { to: "/admin/orders", label: "Orders", icon: ShoppingCart },
   { to: "/admin/transactions", label: "Transactions", icon: Receipt },
+  { to: "/admin/account", label: "Account", icon: UserIcon },
 ];
 
 export default function AdminLayout() {

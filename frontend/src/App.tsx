@@ -1,5 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "./context/AuthContext";
+import { ToastProvider } from "./context/ToastContext";
+import { ConfirmProvider } from "./context/ConfirmContext";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 
@@ -11,6 +13,7 @@ import AdminBookings from "./portals/admin/Bookings";
 import AdminListings from "./portals/admin/Listings";
 import AdminOrders from "./portals/admin/Orders";
 import AdminTransactions from "./portals/admin/Transactions";
+import AdminAccount from "./portals/admin/Account";
 
 import FarmerLayout from "./portals/farmer/FarmerLayout";
 import FarmerOverview from "./portals/farmer/Overview";
@@ -61,6 +64,7 @@ function AppRoutes() {
         <Route path="listings" element={<AdminListings />} />
         <Route path="orders" element={<AdminOrders />} />
         <Route path="transactions" element={<AdminTransactions />} />
+        <Route path="account" element={<AdminAccount />} />
       </Route>
 
       <Route
@@ -114,9 +118,13 @@ function AppRoutes() {
 export default function App() {
   return (
     <BrowserRouter>
-      <AuthProvider>
-        <AppRoutes />
-      </AuthProvider>
+      <ToastProvider>
+        <ConfirmProvider>
+          <AuthProvider>
+            <AppRoutes />
+          </AuthProvider>
+        </ConfirmProvider>
+      </ToastProvider>
     </BrowserRouter>
   );
 }
