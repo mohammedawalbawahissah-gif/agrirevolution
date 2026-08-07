@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { CloudSun, Tractor, Sprout } from "lucide-react";
+import { Sparkles, Tractor, Sprout } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import { useFetch } from "../../hooks/useFetch";
 import type { Paginated, EquipmentBooking, ProduceListing, PlantingRecommendation } from "../../types";
@@ -55,7 +55,7 @@ export default function FarmerOverview() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <StatCard icon={CloudSun} label="Weather Guidance" value={recommendations?.count ?? 0} to="/farmer/weather" accent="#3B82F6" />
+        <StatCard icon={Sparkles} label="AI Weather Guidance" value={recommendations?.count ?? 0} to="/farmer/ai-assistant" accent="#3B82F6" />
         <StatCard icon={Tractor} label="Equipment Requests" value={bookings?.count ?? 0} to="/farmer/equipment" accent="#D9A441" />
         <StatCard icon={Sprout} label="Produce Listings" value={listings?.count ?? 0} to="/farmer/marketplace" accent="#2F6B3C" />
       </div>
@@ -64,7 +64,7 @@ export default function FarmerOverview() {
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
           <div className="flex items-center justify-between mb-3">
             <h2 className="font-semibold">Latest Weather Guidance</h2>
-            <Link to="/farmer/weather" className="text-sm text-brand-green hover:underline">
+            <Link to="/farmer/ai-assistant" className="text-sm text-brand-green hover:underline">
               View all
             </Link>
           </div>

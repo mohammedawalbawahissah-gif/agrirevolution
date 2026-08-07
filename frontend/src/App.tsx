@@ -14,7 +14,7 @@ import AdminTransactions from "./portals/admin/Transactions";
 
 import FarmerLayout from "./portals/farmer/FarmerLayout";
 import FarmerOverview from "./portals/farmer/Overview";
-import WeatherTab from "./portals/farmer/WeatherTab";
+import AIAssistant from "./portals/farmer/AIAssistant";
 import EquipmentTab from "./portals/farmer/EquipmentTab";
 import MarketplaceTab from "./portals/farmer/MarketplaceTab";
 import FarmerAccountTab from "./portals/farmer/AccountTab";
@@ -72,7 +72,7 @@ function AppRoutes() {
         }
       >
         <Route index element={<FarmerOverview />} />
-        <Route path="weather" element={<WeatherTab />} />
+        <Route path="ai-assistant" element={<AIAssistant />} />
         <Route path="equipment" element={<EquipmentTab />} />
         <Route path="marketplace" element={<MarketplaceTab />} />
         <Route path="account" element={<FarmerAccountTab />} />

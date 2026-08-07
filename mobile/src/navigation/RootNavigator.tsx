@@ -5,7 +5,7 @@ import { ActivityIndicator, View } from "react-native";
 import { useAuth } from "../context/AuthContext";
 import LoginScreen from "../screens/auth/LoginScreen";
 import RegisterScreen from "../screens/auth/RegisterScreen";
-import WeatherScreen from "../screens/WeatherScreen";
+import AIAssistantScreen from "../screens/AIAssistantScreen";
 import EquipmentScreen from "../screens/EquipmentScreen";
 import MarketplaceScreen from "../screens/MarketplaceScreen";
 import AccountScreen from "../screens/AccountScreen";
@@ -31,7 +31,7 @@ function AuthNavigator() {
 function FarmerTabs() {
   return (
     <Tab.Navigator screenOptions={{ headerShown: false }}>
-      <Tab.Screen name="Weather" component={WeatherScreen} />
+      <Tab.Screen name="AI Assistant" component={AIAssistantScreen} />
       <Tab.Screen name="Equipment" component={EquipmentScreen} />
       <Tab.Screen name="Marketplace" component={MarketplaceScreen} />
       <Tab.Screen name="Account" component={AccountScreen} />
