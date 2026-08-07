@@ -12,7 +12,12 @@ class UserSerializer(serializers.ModelSerializer):
             "role", "preferred_access_mode", "community", "district",
             "preferred_language", "is_verified", "expo_push_token", "created_at",
         ]
-        read_only_fields = ["id", "is_verified", "created_at"]
+        # role and is_verified must never be self-editable — role changes
+        # only ever go through the admin-only UserViewSet/AdminUserSerializer
+        # below. Previously `role` was writable here, meaning any
+        # authenticated user could PATCH /accounts/me/ with {"role": "admin"}
+        # and grant themselves full admin access.
+        read_only_fields = ["id", "role", "is_verified", "created_at"]
 
 
 class AdminUserSerializer(serializers.ModelSerializer):

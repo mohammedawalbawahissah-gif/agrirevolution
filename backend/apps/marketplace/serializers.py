@@ -31,7 +31,11 @@ class ProduceListingSerializer(serializers.ModelSerializer):
 
 
 class AdminProduceListingSerializer(serializers.ModelSerializer):
-    """Used only for admin requests — allows manually overriding the AI grade, price band, and status."""
+    """
+    Used only for admin requests — allows manually overriding the AI grade,
+    price band, and status, and leaves `farmer` writable so an admin can
+    list produce on behalf of a farmer who can't do it themselves.
+    """
 
     class Meta:
         model = ProduceListing
@@ -41,7 +45,15 @@ class AdminProduceListingSerializer(serializers.ModelSerializer):
             "status", "listed_via", "delivery_method", "delivery_location",
             "accepted_payment_methods", "created_at",
         ]
-        read_only_fields = ["farmer", "created_at"]
+        read_only_fields = ["created_at"]
+
+    def validate_accepted_payment_methods(self, value):
+        valid_channels = {choice for choice, _ in Transaction.Channel.choices}
+        if not isinstance(value, list) or not all(v in valid_channels for v in value):
+            raise serializers.ValidationError(
+                f"Each payment method must be one of {sorted(valid_channels)}."
+            )
+        return value
 
 
 class OrderSerializer(serializers.ModelSerializer):

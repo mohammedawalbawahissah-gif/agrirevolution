@@ -5,7 +5,7 @@ from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from apps.accounts.permissions import IsBuyerRole, IsFarmerRole, IsOwnerOrAdmin
+from apps.accounts.permissions import IsAdminRole, IsBuyerRole, IsFarmerRole, IsOwnerOrAdmin
 from apps.notifications.models import Notification
 from apps.notifications.services import notify
 
@@ -35,7 +35,7 @@ class ProduceListingViewSet(viewsets.ModelViewSet):
 
     def get_permissions(self):
         if self.action == "create":
-            return [IsAuthenticated(), IsFarmerRole()]
+            return [IsAuthenticated(), (IsFarmerRole | IsAdminRole)()]
         if self.action in ("update", "partial_update", "destroy"):
             return [IsAuthenticated(), IsOwnerOrAdmin()]
         return [IsAuthenticated()]
@@ -55,7 +55,13 @@ class ProduceListingViewSet(viewsets.ModelViewSet):
         return ProduceListingSerializer
 
     def perform_create(self, serializer):
-        listing = serializer.save(farmer=self.request.user)
+        user = self.request.user
+        if user.role == "admin" or user.is_staff:
+            # AdminProduceListingSerializer requires `farmer` in the payload —
+            # the admin picks who this listing is on behalf of.
+            listing = serializer.save()
+        else:
+            listing = serializer.save(farmer=user)
         if listing.photo_url:
             try:
                 grade_produce_listing(listing)

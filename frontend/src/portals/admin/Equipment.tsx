@@ -1,18 +1,29 @@
 import { useState } from "react";
-import { Trash2, PauseCircle, PlayCircle, Tractor } from "lucide-react";
+import { Trash2, PauseCircle, PlayCircle, Plus, Tractor } from "lucide-react";
 import { useFetch } from "../../hooks/useFetch";
 import { apiClient } from "../../api/client";
 import { useToast } from "../../context/ToastContext";
 import { useConfirm } from "../../context/ConfirmContext";
 import StatusBadge from "../../components/ui/StatusBadge";
 import EmptyState from "../../components/ui/EmptyState";
-import type { Paginated, Equipment } from "../../types";
+import type { Paginated, Equipment, User } from "../../types";
+
+const CATEGORIES: Equipment["category"][] = ["ploughing", "planting", "harvesting", "spraying", "transport"];
 
 export default function AdminEquipment() {
   const { data: equipment, isLoading, refetch } = useFetch<Paginated<Equipment>>("/equipment/equipment/");
+  const { data: dealers } = useFetch<Paginated<User>>("/accounts/users/?role=dealer");
   const [busyId, setBusyId] = useState<number | null>(null);
   const toast = useToast();
   const confirm = useConfirm();
+
+  const [formOpen, setFormOpen] = useState(false);
+  const [dealerId, setDealerId] = useState("");
+  const [name, setName] = useState("");
+  const [category, setCategory] = useState<Equipment["category"]>("ploughing");
+  const [rate, setRate] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState("");
 
   async function toggleAvailable(item: Equipment) {
     setBusyId(item.id);
@@ -48,12 +59,121 @@ export default function AdminEquipment() {
     }
   }
 
+  async function handleCreateOnBehalf() {
+    setError("");
+    if (!dealerId) {
+      setError("Choose which dealer this listing is for.");
+      return;
+    }
+    setIsSubmitting(true);
+    try {
+      await apiClient.post("/equipment/equipment/", {
+        dealer: Number(dealerId),
+        name,
+        category,
+        rate_per_acre_ghs: parseFloat(rate),
+      });
+      toast.success(`Listed "${name}" on behalf of the dealer`);
+      setFormOpen(false);
+      setDealerId("");
+      setName("");
+      setCategory("ploughing");
+      setRate("");
+      refetch();
+    } catch {
+      setError("Couldn't create this listing. Check the details and try again.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
   return (
     <div className="p-8 max-w-6xl mx-auto">
-      <div className="mb-6">
-        <h1 className="text-page-title">Equipment</h1>
-        <p className="text-page-subtitle">All equipment listed across every dealer</p>
+      <div className="mb-6 flex items-center justify-between">
+        <div>
+          <h1 className="text-page-title">Equipment</h1>
+          <p className="text-page-subtitle">All equipment listed across every dealer</p>
+        </div>
+        <button
+          onClick={() => setFormOpen(true)}
+          className="flex items-center gap-1.5 bg-brand-green text-white text-sm rounded-md px-4 py-2 hover:opacity-90"
+        >
+          <Plus size={16} />
+          List on Behalf of a Dealer
+        </button>
       </div>
+
+      {formOpen && (
+        <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-5 mb-6">
+          <h3 className="font-semibold mb-3">List Equipment on Behalf of a Dealer</h3>
+          <p className="text-xs text-gray-500 mb-4">
+            For dealers who can't list equipment themselves — the entry appears under their account as normal.
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Dealer</label>
+              <select
+                value={dealerId}
+                onChange={(e) => setDealerId(e.target.value)}
+                className="w-full border border-gray-300 rounded-md px-3 py-2"
+              >
+                <option value="">Select a dealer…</option>
+                {dealers?.results.map((d) => (
+                  <option key={d.id} value={d.id}>
+                    {d.first_name} {d.last_name} (@{d.username})
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Equipment Name</label>
+              <input
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="e.g. Massey Ferguson Tractor"
+                className="w-full border border-gray-300 rounded-md px-3 py-2"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
+              <select
+                value={category}
+                onChange={(e) => setCategory(e.target.value as Equipment["category"])}
+                className="w-full border border-gray-300 rounded-md px-3 py-2 capitalize"
+              >
+                {CATEGORIES.map((c) => (
+                  <option key={c} value={c} className="capitalize">
+                    {c}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Rate (GHS/acre)</label>
+              <input
+                type="number"
+                step="0.01"
+                value={rate}
+                onChange={(e) => setRate(e.target.value)}
+                className="w-full border border-gray-300 rounded-md px-3 py-2"
+              />
+            </div>
+          </div>
+          {error && <p className="text-sm text-red-600 mt-2">{error}</p>}
+          <div className="flex gap-3 mt-4">
+            <button
+              onClick={handleCreateOnBehalf}
+              disabled={isSubmitting}
+              className="bg-brand-green text-white text-sm rounded-md px-4 py-2 hover:opacity-90 disabled:opacity-50"
+            >
+              {isSubmitting ? "Listing…" : "List Equipment"}
+            </button>
+            <button onClick={() => setFormOpen(false)} className="text-sm text-gray-500">
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
 
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
         {equipment?.results.length ? (

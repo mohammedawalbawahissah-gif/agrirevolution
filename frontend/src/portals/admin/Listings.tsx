@@ -1,11 +1,11 @@
 import { useState } from "react";
-import { Sprout } from "lucide-react";
+import { Plus, Sprout } from "lucide-react";
 import { useFetch } from "../../hooks/useFetch";
 import { apiClient } from "../../api/client";
 import { useToast } from "../../context/ToastContext";
 import StatusBadge from "../../components/ui/StatusBadge";
 import EmptyState from "../../components/ui/EmptyState";
-import type { Paginated, ProduceListing } from "../../types";
+import type { Paginated, ProduceListing, User } from "../../types";
 
 const STATUSES: ProduceListing["status"][] = ["listed", "reserved", "sold", "expired"];
 const GRADES: ProduceListing["ai_grade"][] = ["ungraded", "A", "B", "C"];
@@ -14,8 +14,16 @@ export default function AdminListings() {
   const { data: listings, isLoading, refetch } = useFetch<Paginated<ProduceListing>>(
     "/marketplace/listings/"
   );
+  const { data: farmers } = useFetch<Paginated<User>>("/accounts/users/?role=farmer");
   const [busyId, setBusyId] = useState<number | null>(null);
   const toast = useToast();
+
+  const [formOpen, setFormOpen] = useState(false);
+  const [farmerId, setFarmerId] = useState("");
+  const [crop, setCrop] = useState("");
+  const [quantity, setQuantity] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState("");
 
   async function updateField(
     listing: ProduceListing,
@@ -34,14 +42,108 @@ export default function AdminListings() {
     }
   }
 
+  async function handleCreateOnBehalf() {
+    setError("");
+    if (!farmerId) {
+      setError("Choose which farmer this listing is for.");
+      return;
+    }
+    setIsSubmitting(true);
+    try {
+      await apiClient.post("/marketplace/listings/", {
+        farmer: Number(farmerId),
+        crop,
+        quantity_kg: parseFloat(quantity),
+        listed_via: "app",
+      });
+      toast.success(`Listed ${crop} on behalf of the farmer`);
+      setFormOpen(false);
+      setFarmerId("");
+      setCrop("");
+      setQuantity("");
+      refetch();
+    } catch {
+      setError("Couldn't create this listing. Check the details and try again.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
   return (
     <div className="p-8 max-w-6xl mx-auto">
-      <div className="mb-6">
-        <h1 className="text-page-title">Produce Listings</h1>
-        <p className="text-page-subtitle">
-          Every listing across the marketplace — override the AI grade manually if needed
-        </p>
+      <div className="mb-6 flex items-center justify-between">
+        <div>
+          <h1 className="text-page-title">Produce Listings</h1>
+          <p className="text-page-subtitle">
+            Every listing across the marketplace — override the AI grade manually if needed
+          </p>
+        </div>
+        <button
+          onClick={() => setFormOpen(true)}
+          className="flex items-center gap-1.5 bg-brand-green text-white text-sm rounded-md px-4 py-2 hover:opacity-90"
+        >
+          <Plus size={16} />
+          List on Behalf of a Farmer
+        </button>
       </div>
+
+      {formOpen && (
+        <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-5 mb-6">
+          <h3 className="font-semibold mb-3">List Produce on Behalf of a Farmer</h3>
+          <p className="text-xs text-gray-500 mb-4">
+            For farmers who can't list produce themselves — the listing appears under their account as normal.
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Farmer</label>
+              <select
+                value={farmerId}
+                onChange={(e) => setFarmerId(e.target.value)}
+                className="w-full border border-gray-300 rounded-md px-3 py-2"
+              >
+                <option value="">Select a farmer…</option>
+                {farmers?.results.map((f) => (
+                  <option key={f.id} value={f.id}>
+                    {f.first_name} {f.last_name} (@{f.username})
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Crop</label>
+              <input
+                value={crop}
+                onChange={(e) => setCrop(e.target.value)}
+                placeholder="e.g. Maize"
+                className="w-full border border-gray-300 rounded-md px-3 py-2"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Quantity (kg)</label>
+              <input
+                type="number"
+                step="0.1"
+                value={quantity}
+                onChange={(e) => setQuantity(e.target.value)}
+                className="w-full border border-gray-300 rounded-md px-3 py-2"
+              />
+            </div>
+          </div>
+          {error && <p className="text-sm text-red-600 mt-2">{error}</p>}
+          <div className="flex gap-3 mt-4">
+            <button
+              onClick={handleCreateOnBehalf}
+              disabled={isSubmitting}
+              className="bg-brand-green text-white text-sm rounded-md px-4 py-2 hover:opacity-90 disabled:opacity-50"
+            >
+              {isSubmitting ? "Listing…" : "List Produce"}
+            </button>
+            <button onClick={() => setFormOpen(false)} className="text-sm text-gray-500">
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
 
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
         {listings?.results.length ? (

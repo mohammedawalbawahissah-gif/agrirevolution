@@ -1,18 +1,27 @@
 from rest_framework import viewsets
 from rest_framework.permissions import IsAuthenticated
 
-from apps.accounts.permissions import IsDealerRole, IsOwnerOrAdmin
+from apps.accounts.permissions import IsAdminRole, IsDealerRole, IsOwnerOrAdmin
 from apps.notifications.models import Notification
 from apps.notifications.services import notify
 
 from .models import Equipment, EquipmentBooking
-from .serializers import EquipmentBookingSerializer, EquipmentBookingStatusSerializer, EquipmentSerializer
+from .serializers import (
+    AdminEquipmentBookingSerializer,
+    AdminEquipmentSerializer,
+    EquipmentBookingSerializer,
+    EquipmentBookingStatusSerializer,
+    EquipmentSerializer,
+)
 
 
 class EquipmentViewSet(viewsets.ModelViewSet):
     """
-    Anyone authenticated can browse equipment. Only dealers can list new
-    equipment, and only the owning dealer (or an admin) can edit/delete it.
+    Anyone authenticated can browse equipment. Dealers can list their own
+    equipment; admins can also list equipment on behalf of a dealer who
+    can't do it themselves (e.g. no smartphone), via AdminEquipmentSerializer
+    which leaves `dealer` writable instead of always defaulting to the
+    requesting user. Only the owning dealer (or an admin) can edit/delete it.
     """
 
     queryset = Equipment.objects.select_related("dealer").all()
@@ -22,19 +31,34 @@ class EquipmentViewSet(viewsets.ModelViewSet):
 
     def get_permissions(self):
         if self.action == "create":
-            return [IsAuthenticated(), IsDealerRole()]
+            return [IsAuthenticated(), (IsDealerRole | IsAdminRole)()]
         if self.action in ("update", "partial_update", "destroy"):
             return [IsAuthenticated(), IsOwnerOrAdmin()]
         return [IsAuthenticated()]
 
+    def get_serializer_class(self):
+        user = self.request.user
+        if user.is_authenticated and (user.role == "admin" or user.is_staff):
+            return AdminEquipmentSerializer
+        return EquipmentSerializer
+
     def perform_create(self, serializer):
-        serializer.save(dealer=self.request.user)
+        user = self.request.user
+        if user.role == "admin" or user.is_staff:
+            # AdminEquipmentSerializer requires `dealer` in the payload — the
+            # admin picks who this listing is on behalf of.
+            serializer.save()
+        else:
+            serializer.save(dealer=user)
 
 
 class EquipmentBookingViewSet(viewsets.ModelViewSet):
     """
     Farmers see and create their own bookings. Dealers see bookings made
-    against their own equipment (and can update status). Admins see everything.
+    against their own equipment (and can update status). Admins see and can
+    create everything — including a booking on behalf of a farmer who can't
+    do it themselves, via AdminEquipmentBookingSerializer (farmer/equipment/
+    delivery/payment all writable, unlike the dealer-facing status-only one).
     """
 
     queryset = EquipmentBooking.objects.all()
@@ -54,12 +78,20 @@ class EquipmentBookingViewSet(viewsets.ModelViewSet):
 
     def get_serializer_class(self):
         user = self.request.user
-        if user.is_authenticated and (user.role in ("dealer", "admin") or user.is_staff):
+        if user.is_authenticated and (user.role == "admin" or user.is_staff):
+            return AdminEquipmentBookingSerializer
+        if user.is_authenticated and user.role == "dealer":
             return EquipmentBookingStatusSerializer
         return EquipmentBookingSerializer
 
     def perform_create(self, serializer):
-        booking = serializer.save(farmer=self.request.user)
+        user = self.request.user
+        if user.role == "admin" or user.is_staff:
+            # AdminEquipmentBookingSerializer requires `farmer` in the
+            # payload — the admin picks who this booking is on behalf of.
+            booking = serializer.save()
+        else:
+            booking = serializer.save(farmer=user)
         notify(
             booking.equipment.dealer,
             Notification.Channel.SMS,

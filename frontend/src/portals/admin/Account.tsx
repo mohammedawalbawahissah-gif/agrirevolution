@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useAuth } from "../../context/AuthContext";
 import { apiClient } from "../../api/client";
+import { useToast } from "../../context/ToastContext";
 
 function Row({ label, value }: { label: string; value: string }) {
   return (
@@ -11,19 +12,45 @@ function Row({ label, value }: { label: string; value: string }) {
   );
 }
 
+const ACCESS_MODES = [
+  { value: "app", label: "Smartphone App" },
+  { value: "ussd", label: "USSD" },
+  { value: "voice", label: "Voice" },
+] as const;
+
 export default function AdminAccount() {
   const { user, refreshUser } = useAuth();
+  const toast = useToast();
   const [isEditing, setIsEditing] = useState(false);
   const [form, setForm] = useState({
     first_name: user?.first_name ?? "",
     last_name: user?.last_name ?? "",
     phone_number: user?.phone_number ?? "",
     community: user?.community ?? "",
+    district: user?.district ?? "",
+    preferred_language: user?.preferred_language ?? "",
+    preferred_access_mode: user?.preferred_access_mode ?? "app",
   });
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState("");
 
   if (!user) return null;
+
+  function startEditing() {
+    // Reset the form to the current user each time editing opens, so a
+    // previously-cancelled edit never leaks stale values back in.
+    setForm({
+      first_name: user!.first_name ?? "",
+      last_name: user!.last_name ?? "",
+      phone_number: user!.phone_number ?? "",
+      community: user!.community ?? "",
+      district: user!.district ?? "",
+      preferred_language: user!.preferred_language ?? "",
+      preferred_access_mode: user!.preferred_access_mode ?? "app",
+    });
+    setError("");
+    setIsEditing(true);
+  }
 
   async function handleSave() {
     setError("");
@@ -31,6 +58,7 @@ export default function AdminAccount() {
     try {
       await apiClient.patch("/accounts/me/", form);
       await refreshUser();
+      toast.success("Profile updated");
       setIsEditing(false);
     } catch {
       setError("Could not save changes. Please try again.");
@@ -82,13 +110,49 @@ export default function AdminAccount() {
                 className="w-full border border-gray-300 rounded-md px-3 py-2"
               />
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Community</label>
-              <input
-                value={form.community}
-                onChange={(e) => setForm({ ...form, community: e.target.value })}
-                className="w-full border border-gray-300 rounded-md px-3 py-2"
-              />
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Community</label>
+                <input
+                  value={form.community}
+                  onChange={(e) => setForm({ ...form, community: e.target.value })}
+                  className="w-full border border-gray-300 rounded-md px-3 py-2"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">District</label>
+                <input
+                  value={form.district}
+                  onChange={(e) => setForm({ ...form, district: e.target.value })}
+                  className="w-full border border-gray-300 rounded-md px-3 py-2"
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Preferred language</label>
+                <input
+                  value={form.preferred_language}
+                  onChange={(e) => setForm({ ...form, preferred_language: e.target.value })}
+                  className="w-full border border-gray-300 rounded-md px-3 py-2"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Access mode</label>
+                <select
+                  value={form.preferred_access_mode}
+                  onChange={(e) =>
+                    setForm({ ...form, preferred_access_mode: e.target.value as typeof form.preferred_access_mode })
+                  }
+                  className="w-full border border-gray-300 rounded-md px-3 py-2"
+                >
+                  {ACCESS_MODES.map((m) => (
+                    <option key={m.value} value={m.value}>
+                      {m.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
             {error && <p className="text-sm text-red-600">{error}</p>}
             <div className="flex gap-3 pt-2">
@@ -107,13 +171,15 @@ export default function AdminAccount() {
         ) : (
           <div className="space-y-3">
             <Row label="Username" value={user.username} />
+            <Row label="First name" value={user.first_name || "—"} />
+            <Row label="Last name" value={user.last_name || "—"} />
             <Row label="Phone" value={user.phone_number || "—"} />
             <Row label="Community" value={user.community || "—"} />
-            <Row label="District" value={user.district} />
-            <Row label="Preferred language" value={user.preferred_language} />
+            <Row label="District" value={user.district || "—"} />
+            <Row label="Preferred language" value={user.preferred_language || "—"} />
             <Row label="Access mode" value={user.preferred_access_mode.toUpperCase()} />
             <button
-              onClick={() => setIsEditing(true)}
+              onClick={startEditing}
               className="mt-2 text-sm text-brand-green font-medium hover:underline"
             >
               Edit profile
