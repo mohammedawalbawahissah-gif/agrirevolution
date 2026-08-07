@@ -12,6 +12,16 @@
   --color-brand-gold-dark: #B3822F;
   --color-brand-cream: #FBF8F2;
 
+  /* Sidebar/header surface — deliberately not green, so the chrome reads
+     as a distinct structural layer from the green accents used for actions
+     and status inside the content area. A deep slate-teal instead of white
+     also gives the app a stronger visual anchor than a flat white rail. */
+  --color-sidebar: #1B2E30;
+  --color-sidebar-hover: #24403F;
+  --color-sidebar-active: #2C4E4A;
+  --color-sidebar-text: #C7D6D2;
+  --color-sidebar-text-muted: #7E9490;
+
   /* Semantic status tones — the single source of truth every StatusBadge
      and status-driven UI element across all four portals draws from. */
   --color-status-success: #2F6B3C;

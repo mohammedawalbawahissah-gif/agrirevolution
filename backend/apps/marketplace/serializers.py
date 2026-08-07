@@ -10,15 +10,16 @@ class ProduceListingSerializer(serializers.ModelSerializer):
         model = ProduceListing
         fields = [
             "id", "farmer", "crop", "quantity_kg", "photo_url", "ai_grade",
-            "ai_grading_notes", "fair_price_band_low_ghs", "fair_price_band_high_ghs",
-            "status", "listed_via", "delivery_method", "delivery_location",
-            "accepted_payment_methods", "created_at",
+            "ai_grading_notes", "grading_source", "fair_price_band_low_ghs",
+            "fair_price_band_high_ghs", "status", "listed_via", "delivery_method",
+            "delivery_location", "accepted_payment_methods", "created_at",
         ]
         # farmer is set server-side from the authenticated user (see perform_create).
-        # ai_grade/price band come from the AI grading pipeline, not the farmer directly.
+        # ai_grade/price band/grading_source only change through the grade or
+        # manual-grade actions, never a plain PATCH — see views.py.
         read_only_fields = [
-            "farmer", "ai_grade", "ai_grading_notes", "fair_price_band_low_ghs",
-            "fair_price_band_high_ghs", "created_at",
+            "farmer", "ai_grade", "ai_grading_notes", "grading_source",
+            "fair_price_band_low_ghs", "fair_price_band_high_ghs", "created_at",
         ]
 
     def validate_accepted_payment_methods(self, value):
@@ -41,9 +42,9 @@ class AdminProduceListingSerializer(serializers.ModelSerializer):
         model = ProduceListing
         fields = [
             "id", "farmer", "crop", "quantity_kg", "photo_url", "ai_grade",
-            "ai_grading_notes", "fair_price_band_low_ghs", "fair_price_band_high_ghs",
-            "status", "listed_via", "delivery_method", "delivery_location",
-            "accepted_payment_methods", "created_at",
+            "ai_grading_notes", "grading_source", "fair_price_band_low_ghs",
+            "fair_price_band_high_ghs", "status", "listed_via", "delivery_method",
+            "delivery_location", "accepted_payment_methods", "created_at",
         ]
         read_only_fields = ["created_at"]
 

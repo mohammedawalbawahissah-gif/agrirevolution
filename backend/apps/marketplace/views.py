@@ -16,7 +16,7 @@ from .serializers import (
     OrderStatusSerializer,
     ProduceListingSerializer,
 )
-from .services import GradingServiceError, grade_produce_listing
+from .services import GradingServiceError, apply_manual_grade, grade_produce_listing
 
 logger = logging.getLogger(__name__)
 
@@ -88,6 +88,26 @@ class ProduceListingViewSet(viewsets.ModelViewSet):
             grade_produce_listing(listing)
         except GradingServiceError as exc:
             return Response({"detail": str(exc)}, status=503)
+        return Response(ProduceListingSerializer(listing).data)
+
+    @action(detail=True, methods=["post"], url_path="manual-grade")
+    def manual_grade(self, request, pk=None):
+        """Let the farmer grade their own produce — no photo required. Also
+        available to admins acting on a farmer's behalf."""
+        listing = self.get_object()
+        user = request.user
+        if not (user == listing.farmer or user.role == "admin" or user.is_staff):
+            return Response({"detail": "Not permitted to grade this listing."}, status=403)
+        try:
+            apply_manual_grade(
+                listing,
+                grade=request.data.get("grade", ""),
+                notes=request.data.get("notes", ""),
+                price_low=request.data.get("price_band_low_ghs"),
+                price_high=request.data.get("price_band_high_ghs"),
+            )
+        except GradingServiceError as exc:
+            return Response({"detail": str(exc)}, status=400)
         return Response(ProduceListingSerializer(listing).data)
 
 

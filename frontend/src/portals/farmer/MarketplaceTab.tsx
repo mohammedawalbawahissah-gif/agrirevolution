@@ -2,18 +2,57 @@ import { useState } from "react";
 import { useAuth } from "../../context/AuthContext";
 import { useFetch } from "../../hooks/useFetch";
 import { apiClient } from "../../api/client";
+import { useToast } from "../../context/ToastContext";
+import StatusBadge from "../../components/ui/StatusBadge";
 import type { Paginated, PaymentChannel, ProduceListing } from "../../types";
 import { PAYMENT_CHANNEL_LABELS } from "../../types";
 
 const PAYMENT_CHANNELS = Object.keys(PAYMENT_CHANNEL_LABELS) as PaymentChannel[];
+const GRADES: ("A" | "B" | "C")[] = ["A", "B", "C"];
 
 export default function MarketplaceTab() {
   const { user } = useAuth();
+  const toast = useToast();
   // Backend already scopes this to the logged-in farmer's own listings.
   const { data: listings, isLoading, refetch } = useFetch<Paginated<ProduceListing>>(
     user ? "/marketplace/listings/" : null,
     [user?.id]
   );
+
+  const [gradingListing, setGradingListing] = useState<ProduceListing | null>(null);
+  const [manualGrade, setManualGrade] = useState<"A" | "B" | "C">("B");
+  const [manualNotes, setManualNotes] = useState("");
+  const [manualPriceLow, setManualPriceLow] = useState("");
+  const [manualPriceHigh, setManualPriceHigh] = useState("");
+  const [isGrading, setIsGrading] = useState(false);
+
+  function openManualGrade(listing: ProduceListing) {
+    setGradingListing(listing);
+    setManualGrade(listing.ai_grade === "ungraded" ? "B" : (listing.ai_grade as "A" | "B" | "C"));
+    setManualNotes("");
+    setManualPriceLow(listing.fair_price_band_low_ghs ?? "");
+    setManualPriceHigh(listing.fair_price_band_high_ghs ?? "");
+  }
+
+  async function handleManualGrade() {
+    if (!gradingListing) return;
+    setIsGrading(true);
+    try {
+      await apiClient.post(`/marketplace/listings/${gradingListing.id}/manual-grade/`, {
+        grade: manualGrade,
+        notes: manualNotes,
+        price_band_low_ghs: manualPriceLow || undefined,
+        price_band_high_ghs: manualPriceHigh || undefined,
+      });
+      toast.success("Grade saved.");
+      setGradingListing(null);
+      refetch();
+    } catch {
+      toast.error("Could not save your grade. Please try again.");
+    } finally {
+      setIsGrading(false);
+    }
+  }
 
   const [formOpen, setFormOpen] = useState(false);
   const [crop, setCrop] = useState("");
@@ -174,13 +213,16 @@ export default function MarketplaceTab() {
       <div className="bg-white rounded-lg shadow-sm border border-gray-100 divide-y">
         {isLoading && <p className="px-5 py-4 text-sm text-gray-400">Loading…</p>}
         {listings?.results.map((l) => (
-          <div key={l.id} className="px-5 py-4 flex items-center justify-between text-sm">
-            <div>
+          <div key={l.id} className="px-5 py-4 flex items-center justify-between text-sm gap-4">
+            <div className="min-w-0">
               <p className="font-medium">
                 {l.quantity_kg}kg {l.crop}
               </p>
               <p className="text-gray-500 mt-0.5">
-                Grade: {l.ai_grade === "ungraded" ? "Pending AI review" : l.ai_grade}
+                Grade:{" "}
+                {l.ai_grade === "ungraded"
+                  ? "Not graded yet"
+                  : `${l.ai_grade}${l.grading_source === "manual" ? " (self-graded)" : l.grading_source === "ai" ? " (AI graded)" : ""}`}
                 {l.fair_price_band_low_ghs && l.fair_price_band_high_ghs
                   ? ` · GHS ${l.fair_price_band_low_ghs}–${l.fair_price_band_high_ghs}`
                   : ""}
@@ -188,10 +230,14 @@ export default function MarketplaceTab() {
               {l.ai_grading_notes && (
                 <p className="text-gray-400 text-xs mt-1 max-w-md">{l.ai_grading_notes}</p>
               )}
+              <button
+                onClick={() => openManualGrade(l)}
+                className="text-xs text-brand-green font-medium mt-1.5 hover:underline"
+              >
+                {l.ai_grade === "ungraded" ? "Grade it yourself" : "Edit grade"}
+              </button>
             </div>
-            <span className="px-2 py-1 rounded-full bg-gray-100 text-gray-700 text-xs capitalize">
-              {l.status}
-            </span>
+            <StatusBadge status={l.status} />
           </div>
         ))}
         {!isLoading && listings?.results.length === 0 && (
@@ -200,6 +246,82 @@ export default function MarketplaceTab() {
           </p>
         )}
       </div>
+
+      {gradingListing && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 px-4">
+          <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-sm">
+            <h3 className="font-semibold mb-1">
+              Grade {gradingListing.quantity_kg}kg {gradingListing.crop}
+            </h3>
+            <p className="text-xs text-gray-500 mb-4">
+              No photo, or you know your produce better than a picture can show? Grade it yourself.
+            </p>
+
+            <label className="block text-sm font-medium text-gray-700 mb-1">Grade</label>
+            <div className="flex gap-2 mb-3">
+              {GRADES.map((g) => (
+                <button
+                  key={g}
+                  onClick={() => setManualGrade(g)}
+                  className={`flex-1 py-2 rounded-md text-sm font-semibold border ${
+                    manualGrade === g
+                      ? "bg-brand-green text-white border-brand-green"
+                      : "bg-white text-gray-700 border-gray-300"
+                  }`}
+                >
+                  {g}
+                </button>
+              ))}
+            </div>
+
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Notes <span className="text-gray-400 font-normal">(optional)</span>
+            </label>
+            <textarea
+              value={manualNotes}
+              onChange={(e) => setManualNotes(e.target.value)}
+              rows={2}
+              placeholder="e.g. Fresh harvest, minor bruising on a few pieces"
+              className="w-full border border-gray-300 rounded-md px-3 py-2 mb-3 text-sm"
+            />
+
+            <div className="grid grid-cols-2 gap-3 mb-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Price low (GHS)</label>
+                <input
+                  value={manualPriceLow}
+                  onChange={(e) => setManualPriceLow(e.target.value)}
+                  inputMode="decimal"
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Price high (GHS)</label>
+                <input
+                  value={manualPriceHigh}
+                  onChange={(e) => setManualPriceHigh(e.target.value)}
+                  inputMode="decimal"
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
+                />
+              </div>
+            </div>
+
+            <button
+              onClick={handleManualGrade}
+              disabled={isGrading}
+              className="w-full bg-brand-green text-white rounded-md py-2 font-medium hover:opacity-90 disabled:opacity-50"
+            >
+              {isGrading ? "Saving…" : "Save Grade"}
+            </button>
+            <button
+              onClick={() => setGradingListing(null)}
+              className="w-full text-center text-sm text-gray-500 mt-3"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

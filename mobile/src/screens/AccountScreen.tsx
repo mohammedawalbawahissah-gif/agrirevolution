@@ -119,7 +119,9 @@ export default function AccountScreen() {
         <Text style={styles.name}>
           {user.first_name} {user.last_name}
         </Text>
-        <Text style={styles.role}>{user.role.charAt(0).toUpperCase() + user.role.slice(1)}</Text>
+        {user.role !== "buyer" && (
+          <Text style={styles.role}>{user.role.charAt(0).toUpperCase() + user.role.slice(1)}</Text>
+        )}
       </View>
 
       {isEditing ? (

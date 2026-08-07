@@ -1,8 +1,8 @@
 import { useState, type FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
-import { Sprout } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import Button from "../components/ui/Button";
+import logo from "../assets/logo.svg";
 
 const inputClass =
   "w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-green focus:border-transparent";
@@ -33,9 +33,7 @@ export default function Login() {
     <div className="min-h-screen flex items-center justify-center bg-brand-cream px-4">
       <div className="w-full max-w-sm">
         <div className="flex justify-center mb-5">
-          <div className="w-11 h-11 rounded-full bg-brand-green-light flex items-center justify-center">
-            <Sprout size={20} className="text-brand-green" />
-          </div>
+          <img src={logo} alt="AgriRevolution" className="w-16 h-16 rounded-full shadow-sm" />
         </div>
 
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-8">

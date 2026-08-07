@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { apiClient } from "../api/client";
 import type { UserRole } from "../types";
 import Button from "../components/ui/Button";
+import logo from "../assets/logo.svg";
 
 const inputClass =
   "w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-green focus:border-transparent";
@@ -45,6 +46,9 @@ export default function Register() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-brand-cream px-4 py-12">
       <div className="w-full max-w-md bg-white rounded-xl shadow-sm border border-gray-100 p-8">
+        <div className="flex justify-center mb-5">
+          <img src={logo} alt="AgriRevolution" className="w-14 h-14 rounded-full shadow-sm" />
+        </div>
         <h1 className="text-page-title">Create your account</h1>
         <p className="text-page-subtitle mb-6">Join AgriRevolution as a farmer, dealer, or buyer</p>
 

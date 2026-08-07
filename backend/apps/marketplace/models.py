@@ -22,12 +22,20 @@ class ProduceListing(models.Model):
         DELIVERY = "delivery", "Delivery Only"
         BOTH = "both", "Pickup or Delivery"
 
+    class GradingSource(models.TextChoices):
+        AI = "ai", "AI Graded"
+        MANUAL = "manual", "Farmer Graded"
+
     farmer = models.ForeignKey(User, on_delete=models.CASCADE, related_name="produce_listings")
     crop = models.CharField(max_length=120)
     quantity_kg = models.DecimalField(max_digits=9, decimal_places=2)
     photo_url = models.URLField(blank=True)
     ai_grade = models.CharField(max_length=10, choices=Grade.choices, default=Grade.UNGRADED)
     ai_grading_notes = models.TextField(blank=True, help_text="Explanation the AI gave for the grade assigned")
+    grading_source = models.CharField(
+        max_length=10, choices=GradingSource.choices, blank=True,
+        help_text="Who assigned the current grade — blank until graded either way",
+    )
     fair_price_band_low_ghs = models.DecimalField(max_digits=9, decimal_places=2, null=True, blank=True)
     fair_price_band_high_ghs = models.DecimalField(max_digits=9, decimal_places=2, null=True, blank=True)
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.LISTED)

@@ -83,5 +83,33 @@ def grade_produce_listing(listing: ProduceListing) -> ProduceListing:
     listing.ai_grading_notes = parsed.get("notes", "").strip() or "No notes provided."
     listing.fair_price_band_low_ghs = parsed.get("price_band_low_ghs")
     listing.fair_price_band_high_ghs = parsed.get("price_band_high_ghs")
-    listing.save(update_fields=["ai_grade", "ai_grading_notes", "fair_price_band_low_ghs", "fair_price_band_high_ghs"])
+    listing.grading_source = ProduceListing.GradingSource.AI
+    listing.save(
+        update_fields=[
+            "ai_grade", "ai_grading_notes", "fair_price_band_low_ghs",
+            "fair_price_band_high_ghs", "grading_source",
+        ]
+    )
+    return listing
+
+
+def apply_manual_grade(listing: ProduceListing, *, grade: str, notes: str, price_low, price_high) -> ProduceListing:
+    """Let the farmer (or an admin, on their behalf) grade the listing themselves —
+    for when there's no photo, AI grading failed, or they simply know their produce
+    better than a photo can show."""
+    valid_grades = {c[0] for c in ProduceListing.Grade.choices if c[0] != ProduceListing.Grade.UNGRADED}
+    if grade not in valid_grades:
+        raise GradingServiceError(f"grade must be one of {sorted(valid_grades)}.")
+
+    listing.ai_grade = grade
+    listing.ai_grading_notes = notes.strip() or "Graded by the farmer."
+    listing.fair_price_band_low_ghs = price_low
+    listing.fair_price_band_high_ghs = price_high
+    listing.grading_source = ProduceListing.GradingSource.MANUAL
+    listing.save(
+        update_fields=[
+            "ai_grade", "ai_grading_notes", "fair_price_band_low_ghs",
+            "fair_price_band_high_ghs", "grading_source",
+        ]
+    )
     return listing

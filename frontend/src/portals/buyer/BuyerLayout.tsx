@@ -9,5 +9,5 @@ const NAV_ITEMS = [
 ];
 
 export default function BuyerLayout() {
-  return <PortalShell navItems={NAV_ITEMS} roleLabel="Buyer" />;
+  return <PortalShell navItems={NAV_ITEMS} roleLabel="" />;
 }
