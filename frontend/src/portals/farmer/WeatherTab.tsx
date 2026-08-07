@@ -39,7 +39,7 @@ export default function WeatherTab() {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="p-8 max-w-4xl mx-auto space-y-4">
       <div>
         <h2 className="text-lg font-semibold">Weather Guidance</h2>
         <p className="text-sm text-gray-500 mt-1">
