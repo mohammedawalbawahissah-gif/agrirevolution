@@ -12,8 +12,8 @@ export const colors = {
   brandGoldDark: "#B3822F",
   brandCream: "#FBF8F2",
 
-  statusSuccess: "#2C4E4A",
-  statusSuccessBg: "#E3ECEA",
+  statusSuccess: "#334155",
+  statusSuccessBg: "#E7EBF0",
   statusWarning: "#B3822F",
   statusWarningBg: "#FBF1DD",
   statusDanger: "#B3403A",

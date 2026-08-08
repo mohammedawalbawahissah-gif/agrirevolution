@@ -13,20 +13,20 @@
   --color-brand-gold-dark: #B3822F;
   --color-brand-cream: #FBF8F2;
 
-  /* Sidebar/header surface — a deep slate-teal, distinct from the
-     terracotta accents used for actions and status inside the content
-     area. A dark surface instead of a flat white rail also gives the app
-     a stronger visual anchor. */
-  --color-sidebar: #1B2E30;
-  --color-sidebar-hover: #24403F;
-  --color-sidebar-active: #2C4E4A;
-  --color-sidebar-text: #C7D6D2;
-  --color-sidebar-text-muted: #7E9490;
+  /* Sidebar/header surface — a dark navy slate, unambiguously blue rather
+     than teal (an earlier pass here was blue-green enough to still read as
+     "green" on screen). Distinct from the terracotta accents used for
+     actions and status inside the content area. */
+  --color-sidebar: #0F172A;
+  --color-sidebar-hover: #1E293B;
+  --color-sidebar-active: #334155;
+  --color-sidebar-text: #CBD5E1;
+  --color-sidebar-text-muted: #94A3B8;
 
   /* Semantic status tones — the single source of truth every StatusBadge
      and status-driven UI element across all four portals draws from. */
-  --color-status-success: #2C4E4A;
-  --color-status-success-bg: #E3ECEA;
+  --color-status-success: #334155;
+  --color-status-success-bg: #E7EBF0;
   --color-status-warning: #B3822F;
   --color-status-warning-bg: #FBF1DD;
   --color-status-danger: #B3403A;
