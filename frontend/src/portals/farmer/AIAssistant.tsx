@@ -229,7 +229,7 @@ function ProduceGradingSection() {
 
 export default function AIAssistant() {
   return (
-    <div className="p-8 max-w-4xl mx-auto space-y-10">
+    <div className="p-4 md:p-8 max-w-4xl mx-auto space-y-10">
       <div>
         <h1 className="text-2xl font-bold">AI Assistant</h1>
         <p className="text-sm text-gray-500 mt-1">

@@ -28,7 +28,7 @@ export default function AdminOrders() {
   }
 
   return (
-    <div className="p-8 max-w-6xl mx-auto">
+    <div className="p-4 md:p-8 max-w-6xl mx-auto">
       <div className="mb-6">
         <h1 className="text-page-title">Orders</h1>
         <p className="text-page-subtitle">All produce orders across every buyer</p>
@@ -36,7 +36,8 @@ export default function AdminOrders() {
 
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
         {orders?.results.length ? (
-          <table className="w-full text-sm">
+          <div className="overflow-x-auto">
+<table className="w-full text-sm">
             <thead className="bg-gray-50 text-gray-500 text-xs uppercase">
               <tr>
                 <th className="text-left px-5 py-3 font-medium">Order</th>
@@ -74,6 +75,7 @@ export default function AdminOrders() {
               ))}
             </tbody>
           </table>
+</div>
         ) : !isLoading ? (
           <EmptyState icon={ClipboardList} title="No orders yet" description="Buyer orders will appear here." />
         ) : (

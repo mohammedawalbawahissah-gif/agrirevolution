@@ -75,7 +75,7 @@ export default function AdminBookings() {
   }
 
   return (
-    <div className="p-8 max-w-6xl mx-auto">
+    <div className="p-4 md:p-8 max-w-6xl mx-auto">
       <div className="mb-6 flex items-center justify-between">
         <div>
           <h1 className="text-page-title">Equipment Bookings</h1>
@@ -166,7 +166,8 @@ export default function AdminBookings() {
 
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
         {bookings?.results.length ? (
-          <table className="w-full text-sm">
+          <div className="overflow-x-auto">
+<table className="w-full text-sm">
             <thead className="bg-gray-50 text-gray-500 text-xs uppercase">
               <tr>
                 <th className="text-left px-5 py-3 font-medium">Booking</th>
@@ -208,6 +209,7 @@ export default function AdminBookings() {
               ))}
             </tbody>
           </table>
+</div>
         ) : !isLoading ? (
           <EmptyState icon={CalendarClock} title="No bookings yet" description="Equipment bookings will appear here." />
         ) : (

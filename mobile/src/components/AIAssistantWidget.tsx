@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
+  Image,
 } from "react-native";
 import * as Speech from "expo-speech";
 import {
@@ -23,6 +24,45 @@ interface ChatMessage {
   role: "user" | "assistant";
   content: string;
 }
+
+/** Helmeted-body avatar for the trigger button — built from plain Views
+ * (no icon library in this project) since no stock glyph matches "a body
+ * frame with a helmet." A ring for the helmet with a visor bar, sitting on
+ * a rounded shoulder shape underneath. */
+function AssistantAvatarIcon() {
+  return (
+    <View style={avatarStyles.wrap}>
+      <View style={avatarStyles.helmet}>
+        <View style={avatarStyles.visor} />
+      </View>
+      <View style={avatarStyles.body} />
+    </View>
+  );
+}
+
+const avatarStyles = StyleSheet.create({
+  wrap: { width: 26, height: 26, alignItems: "center" },
+  helmet: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    borderWidth: 2,
+    borderColor: "#fff",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  visor: { width: 9, height: 2, backgroundColor: "#fff", borderRadius: 1 },
+  body: {
+    width: 22,
+    height: 10,
+    borderTopLeftRadius: 11,
+    borderTopRightRadius: 11,
+    borderWidth: 2,
+    borderBottomWidth: 0,
+    borderColor: "#fff",
+    marginTop: 2,
+  },
+});
 
 /**
  * Floating chat button + modal, mounted once in RootNavigator so it's
@@ -62,6 +102,7 @@ export default function AIAssistantWidget() {
   useSpeechRecognitionEvent("error", () => setIsListening(false));
 
   const firstName = user?.first_name || user?.username || "there";
+  const roleTitle = user?.role ? `${user.role.charAt(0).toUpperCase()}${user.role.slice(1)} Assistant` : "Assistant";
 
   function speak(text: string) {
     if (!voiceOn) return;
@@ -115,7 +156,7 @@ export default function AIAssistantWidget() {
   return (
     <>
       <TouchableOpacity style={styles.fab} onPress={() => setIsOpen(true)} activeOpacity={0.85}>
-        <Text style={styles.fabIcon}>✨</Text>
+        <AssistantAvatarIcon />
       </TouchableOpacity>
 
       <Modal visible={isOpen} animationType="slide" transparent>
@@ -126,8 +167,8 @@ export default function AIAssistantWidget() {
           <View style={styles.panel}>
             <View style={styles.header}>
               <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                <Text style={styles.headerIcon}>✨</Text>
-                <Text style={styles.headerTitle}>AI Assistant</Text>
+                <Image source={require("../../assets/icon.png")} style={styles.headerLogo} />
+                <Text style={styles.headerTitle}>{roleTitle}</Text>
               </View>
               <View style={{ flexDirection: "row", gap: 4 }}>
                 <TouchableOpacity onPress={() => setVoiceOn((v) => !v)} style={styles.headerIconBtn}>
@@ -222,7 +263,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
   },
-  fabIcon: { fontSize: 22, color: "#fff" },
+  headerLogo: { width: 20, height: 20, borderRadius: 10 },
   headerIcon: { fontSize: 16, color: "#fff" },
   micIcon: { fontSize: 15 },
   sendIcon: { fontSize: 14, color: "#fff" },

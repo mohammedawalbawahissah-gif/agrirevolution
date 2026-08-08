@@ -43,7 +43,7 @@ export default function BuyerOverview() {
   const pendingCount = orders?.results.filter((o) => o.status === "pending" || o.status === "accepted").length ?? 0;
 
   return (
-    <div className="p-8 max-w-5xl mx-auto space-y-8">
+    <div className="p-4 md:p-8 max-w-5xl mx-auto space-y-8">
       <div>
         <h1 className="text-2xl font-bold">Welcome back, {user?.first_name || user?.username}</h1>
         <p className="text-sm text-gray-500 mt-1">Here's what's available and what you've ordered</p>

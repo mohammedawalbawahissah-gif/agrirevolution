@@ -46,7 +46,7 @@ export default function DealerOverview() {
   const pendingCount = bookings?.results.filter((b) => b.status === "requested").length ?? 0;
 
   return (
-    <div className="p-8 max-w-5xl mx-auto space-y-8">
+    <div className="p-4 md:p-8 max-w-5xl mx-auto space-y-8">
       <div>
         <h1 className="text-2xl font-bold">Welcome back, {user?.first_name || user?.username}</h1>
         <p className="text-sm text-gray-500 mt-1">Here's how your equipment business is doing</p>

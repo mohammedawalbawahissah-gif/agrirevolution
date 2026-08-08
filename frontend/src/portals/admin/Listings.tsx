@@ -5,10 +5,17 @@ import { apiClient } from "../../api/client";
 import { useToast } from "../../context/ToastContext";
 import StatusBadge from "../../components/ui/StatusBadge";
 import EmptyState from "../../components/ui/EmptyState";
-import type { Paginated, ProduceListing, User } from "../../types";
+import type { Paginated, PaymentChannel, ProduceListing, User } from "../../types";
+import { PAYMENT_CHANNEL_LABELS } from "../../types";
 
 const STATUSES: ProduceListing["status"][] = ["listed", "reserved", "sold", "expired"];
 const GRADES: ProduceListing["ai_grade"][] = ["ungraded", "A", "B", "C"];
+const PAYMENT_CHANNELS = Object.keys(PAYMENT_CHANNEL_LABELS) as PaymentChannel[];
+const DELIVERY_OPTIONS: { value: "pickup" | "delivery" | "both"; label: string }[] = [
+  { value: "pickup", label: "Pickup Only" },
+  { value: "delivery", label: "Delivery Only" },
+  { value: "both", label: "Pickup or Delivery" },
+];
 
 export default function AdminListings() {
   const { data: listings, isLoading, refetch } = useFetch<Paginated<ProduceListing>>(
@@ -22,8 +29,17 @@ export default function AdminListings() {
   const [farmerId, setFarmerId] = useState("");
   const [crop, setCrop] = useState("");
   const [quantity, setQuantity] = useState("");
+  const [deliveryMethod, setDeliveryMethod] = useState<"pickup" | "delivery" | "both">("pickup");
+  const [deliveryLocation, setDeliveryLocation] = useState("");
+  const [acceptedPaymentMethods, setAcceptedPaymentMethods] = useState<PaymentChannel[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
+
+  function togglePaymentMethod(channel: PaymentChannel) {
+    setAcceptedPaymentMethods((prev) =>
+      prev.includes(channel) ? prev.filter((c) => c !== channel) : [...prev, channel]
+    );
+  }
 
   async function updateField(
     listing: ProduceListing,
@@ -55,12 +71,18 @@ export default function AdminListings() {
         crop,
         quantity_kg: parseFloat(quantity),
         listed_via: "app",
+        delivery_method: deliveryMethod,
+        delivery_location: deliveryLocation || undefined,
+        accepted_payment_methods: acceptedPaymentMethods,
       });
       toast.success(`Listed ${crop} on behalf of the farmer`);
       setFormOpen(false);
       setFarmerId("");
       setCrop("");
       setQuantity("");
+      setDeliveryMethod("pickup");
+      setDeliveryLocation("");
+      setAcceptedPaymentMethods([]);
       refetch();
     } catch {
       setError("Couldn't create this listing. Check the details and try again.");
@@ -70,7 +92,7 @@ export default function AdminListings() {
   }
 
   return (
-    <div className="p-8 max-w-6xl mx-auto">
+    <div className="p-4 md:p-8 max-w-6xl mx-auto">
       <div className="mb-6 flex items-center justify-between">
         <div>
           <h1 className="text-page-title">Produce Listings</h1>
@@ -128,6 +150,54 @@ export default function AdminListings() {
                 className="w-full border border-gray-300 rounded-md px-3 py-2"
               />
             </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Delivery</label>
+              <select
+                value={deliveryMethod}
+                onChange={(e) => setDeliveryMethod(e.target.value as "pickup" | "delivery" | "both")}
+                className="w-full border border-gray-300 rounded-md px-3 py-2 bg-white"
+              >
+                {DELIVERY_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                {deliveryMethod === "pickup" ? "Pickup Location" : "Location / Delivery Area"}
+              </label>
+              <input
+                value={deliveryLocation}
+                onChange={(e) => setDeliveryLocation(e.target.value)}
+                placeholder="e.g. Tamale central market"
+                className="w-full border border-gray-300 rounded-md px-3 py-2"
+              />
+            </div>
+            <div className="md:col-span-3">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Accepted Payment Methods</label>
+              <div className="flex flex-wrap gap-2">
+                {PAYMENT_CHANNELS.map((channel) => (
+                  <label
+                    key={channel}
+                    className={`text-sm px-3 py-1.5 rounded-full border cursor-pointer ${
+                      acceptedPaymentMethods.includes(channel)
+                        ? "bg-brand-green text-white border-brand-green"
+                        : "bg-white text-gray-700 border-gray-300"
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      className="hidden"
+                      checked={acceptedPaymentMethods.includes(channel)}
+                      onChange={() => togglePaymentMethod(channel)}
+                    />
+                    {PAYMENT_CHANNEL_LABELS[channel]}
+                  </label>
+                ))}
+              </div>
+            </div>
           </div>
           {error && <p className="text-sm text-red-600 mt-2">{error}</p>}
           <div className="flex gap-3 mt-4">
@@ -147,7 +217,8 @@ export default function AdminListings() {
 
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
         {listings?.results.length ? (
-          <table className="w-full text-sm">
+          <div className="overflow-x-auto">
+<table className="w-full text-sm">
             <thead className="bg-gray-50 text-gray-500 text-xs uppercase">
               <tr>
                 <th className="text-left px-5 py-3 font-medium">Produce</th>
@@ -204,6 +275,7 @@ export default function AdminListings() {
               ))}
             </tbody>
           </table>
+</div>
         ) : !isLoading ? (
           <EmptyState icon={Sprout} title="No listings yet" description="Produce listings will appear here." />
         ) : (

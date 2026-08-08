@@ -77,7 +77,7 @@ export default function BuyerAccount() {
   }
 
   return (
-    <div className="p-8 max-w-lg space-y-6">
+    <div className="p-4 md:p-8 max-w-lg space-y-6">
       <div className="flex items-center gap-4">
         <div className="w-16 h-16 rounded-full bg-brand-green text-white flex items-center justify-center text-2xl font-bold">
           {(user.first_name?.[0] || user.username[0]).toUpperCase()}

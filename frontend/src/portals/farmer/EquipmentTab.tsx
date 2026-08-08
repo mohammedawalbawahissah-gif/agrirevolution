@@ -79,7 +79,7 @@ export default function EquipmentTab() {
   }
 
   return (
-    <div className="p-8 max-w-4xl mx-auto space-y-8">
+    <div className="p-4 md:p-8 max-w-4xl mx-auto space-y-8">
       <div>
         <h2 className="text-lg font-semibold">Equipment</h2>
         <p className="text-sm text-gray-500 mt-1">Request mechanized equipment, pay per use via MoMo</p>

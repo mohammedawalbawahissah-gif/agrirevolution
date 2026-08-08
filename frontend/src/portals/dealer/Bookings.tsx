@@ -40,7 +40,7 @@ export default function DealerBookings() {
   }
 
   return (
-    <div className="p-8 max-w-4xl mx-auto space-y-8">
+    <div className="p-4 md:p-8 max-w-4xl mx-auto space-y-8">
       <div>
         <h1 className="text-page-title">Bookings</h1>
         <p className="text-page-subtitle">Requests against your equipment</p>

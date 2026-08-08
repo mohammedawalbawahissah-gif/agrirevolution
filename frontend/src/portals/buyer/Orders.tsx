@@ -63,7 +63,7 @@ export default function BuyerOrders() {
   }
 
   return (
-    <div className="p-8 max-w-4xl mx-auto space-y-6">
+    <div className="p-4 md:p-8 max-w-4xl mx-auto space-y-6">
       <div>
         <h1 className="text-page-title">My Orders</h1>
         <p className="text-page-subtitle">Track and pay for produce you've ordered</p>

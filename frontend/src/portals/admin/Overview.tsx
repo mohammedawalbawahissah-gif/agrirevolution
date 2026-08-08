@@ -58,7 +58,7 @@ export default function Overview() {
   const { data: stats, isLoading } = useFetch<AdminStats>("/accounts/admin-stats/");
 
   if (isLoading || !stats) {
-    return <div className="p-8 text-gray-400 text-sm">Loading dashboard…</div>;
+    return <div className="p-4 md:p-8 text-gray-400 text-sm">Loading dashboard…</div>;
   }
 
   const roleData = [
@@ -69,7 +69,7 @@ export default function Overview() {
   ].filter((d) => d.value > 0);
 
   return (
-    <div className="p-8 max-w-6xl mx-auto space-y-8">
+    <div className="p-4 md:p-8 max-w-6xl mx-auto space-y-8">
       <div>
         <h1 className="text-2xl font-bold">Overview</h1>
         <p className="text-sm text-gray-500 mt-1">Platform-wide activity at a glance</p>

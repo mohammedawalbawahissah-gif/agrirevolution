@@ -1,11 +1,34 @@
 import { useEffect, useRef, useState } from "react";
-import { Sparkles, X, Send, Mic, MicOff, Volume2, VolumeX } from "lucide-react";
+import { X, Send, Mic, MicOff, Volume2, VolumeX } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { apiClient } from "../api/client";
+import logo from "../assets/logo.svg";
 
 interface ChatMessage {
   role: "user" | "assistant";
   content: string;
+}
+
+/** Helmeted-body avatar for the assistant trigger — no stock icon fit "a body
+ * frame with a helmet," so this is a small hand-drawn glyph in lucide's own
+ * stroke style (round caps, currentColor) so it sits naturally next to them. */
+function AssistantAvatarIcon({ size = 22 }: { size?: number }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <circle cx="12" cy="7.5" r="4.5" />
+      <path d="M7.8 7.5h8.4" />
+      <path d="M4 21v-2.5a8 8 0 0 1 16 0V21" />
+    </svg>
+  );
 }
 
 // Web Speech API isn't in the standard TS lib yet — narrow, local typing
@@ -56,6 +79,7 @@ export default function AIAssistantWidget() {
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
 
   const firstName = user?.first_name || user?.username || "there";
+  const roleTitle = user?.role ? `${user.role.charAt(0).toUpperCase()}${user.role.slice(1)} Assistant` : "Assistant";
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
@@ -119,15 +143,15 @@ export default function AIAssistantWidget() {
         className="fixed bottom-6 right-6 z-40 w-14 h-14 rounded-full bg-brand-green text-white shadow-lg flex items-center justify-center hover:opacity-90 transition"
         aria-label="Open AI Assistant"
       >
-        {isOpen ? <X size={22} /> : <Sparkles size={22} />}
+        {isOpen ? <X size={22} /> : <AssistantAvatarIcon size={22} />}
       </button>
 
       {isOpen && (
         <div className="fixed bottom-24 right-6 z-40 w-[360px] max-w-[calc(100vw-3rem)] h-[520px] max-h-[70vh] bg-white rounded-2xl shadow-2xl border border-gray-100 flex flex-col overflow-hidden">
           <div className="bg-brand-green text-white px-4 py-3 flex items-center justify-between shrink-0">
             <div className="flex items-center gap-2 min-w-0">
-              <Sparkles size={16} />
-              <p className="text-sm font-semibold truncate">AI Assistant</p>
+              <img src={logo} alt="" className="w-5 h-5 rounded-full shrink-0" />
+              <p className="text-sm font-semibold truncate">{roleTitle}</p>
             </div>
             <div className="flex items-center gap-1">
               {ttsSupported && (
