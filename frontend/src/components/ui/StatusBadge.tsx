@@ -35,6 +35,13 @@ const STATUS_TONE: Record<string, Tone> = {
   unverified: "neutral",
 
   listed: "info",
+
+  // crop disease severity
+  healthy: "success",
+  mild: "warning",
+  moderate: "warning",
+  severe: "danger",
+  unknown: "neutral",
 };
 
 interface StatusBadgeProps {

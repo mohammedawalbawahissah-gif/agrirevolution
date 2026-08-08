@@ -12,6 +12,7 @@ import AdminEquipment from "./portals/admin/Equipment";
 import AdminBookings from "./portals/admin/Bookings";
 import AdminListings from "./portals/admin/Listings";
 import AdminOrders from "./portals/admin/Orders";
+import AdminCropHealth from "./portals/admin/CropHealth";
 import AdminTransactions from "./portals/admin/Transactions";
 import AdminAccount from "./portals/admin/Account";
 
@@ -64,6 +65,7 @@ function AppRoutes() {
         <Route path="bookings" element={<AdminBookings />} />
         <Route path="listings" element={<AdminListings />} />
         <Route path="orders" element={<AdminOrders />} />
+        <Route path="crop-health" element={<AdminCropHealth />} />
         <Route path="transactions" element={<AdminTransactions />} />
         <Route path="account" element={<AdminAccount />} />
       </Route>

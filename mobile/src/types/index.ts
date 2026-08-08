@@ -145,11 +145,28 @@ export interface AppNotification {
   id: number;
   user: number;
   channel: "sms" | "push" | "voice";
-  category: "weather_alert" | "booking_update" | "listing_update" | "payment_update";
+  category: "weather_alert" | "booking_update" | "listing_update" | "payment_update" | "crop_health_alert";
   message: string;
+  action_url: string;
   is_sent: boolean;
   sent_at: string | null;
   is_read: boolean;
   read_at: string | null;
+  created_at: string;
+}
+
+export interface DiseaseReport {
+  id: number;
+  farmer: number;
+  farmer_name?: string;
+  crop: string;
+  photo_url: string;
+  diagnosis: string;
+  severity: "healthy" | "mild" | "moderate" | "severe" | "unknown";
+  symptoms_observed: string;
+  recommended_action: string;
+  source: "ai" | "manual";
+  needs_admin_attention: boolean;
+  admin_notes?: string;
   created_at: string;
 }

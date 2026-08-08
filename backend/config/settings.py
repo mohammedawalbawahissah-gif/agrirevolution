@@ -48,6 +48,7 @@ INSTALLED_APPS = [
     "apps.ussd",
     "apps.notifications",
     "apps.assistant",
+    "apps.cropcare",
 ]
 
 MIDDLEWARE = [

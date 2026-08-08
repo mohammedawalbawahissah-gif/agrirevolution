@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { X } from "lucide-react";
 import Button from "./Button";
 import StatusBadge from "./StatusBadge";
@@ -22,16 +23,20 @@ interface DetailModalProps {
   fields: DetailField[];
   actions?: DetailAction[];
   isBusy?: boolean;
+  /** Extra content between the fields list and the actions row — e.g. an editable notes field. */
+  children?: ReactNode;
 }
 
 /**
  * Click-a-row-to-open detail view, replacing the inline status dropdown
- * pattern on list pages: dealer Bookings, admin Equipment/Bookings/Orders.
- * A row's full detail (all the fields the list row can't fit) plus its
- * available actions live here instead, so the list itself stays a compact
- * scan and the actions get proper labels instead of a bare <select>.
+ * pattern on list pages: dealer Bookings, admin Equipment/Bookings/Orders,
+ * admin Crop Health. A row's full detail (all the fields the list row can't
+ * fit) plus its available actions live here instead, so the list itself
+ * stays a compact scan and the actions get proper labels instead of a bare
+ * <select>. `children` is an escape hatch for pages that need more than
+ * static fields + buttons (e.g. an editable admin-notes textarea).
  */
-export default function DetailModal({ isOpen, onClose, title, status, fields, actions, isBusy }: DetailModalProps) {
+export default function DetailModal({ isOpen, onClose, title, status, fields, actions, isBusy, children }: DetailModalProps) {
   if (!isOpen) return null;
 
   return (
@@ -58,6 +63,8 @@ export default function DetailModal({ isOpen, onClose, title, status, fields, ac
             </div>
           ))}
         </div>
+
+        {children}
 
         {actions && actions.length > 0 && (
           <div className="flex flex-wrap justify-end gap-2 px-5 py-4 border-t border-gray-100">
