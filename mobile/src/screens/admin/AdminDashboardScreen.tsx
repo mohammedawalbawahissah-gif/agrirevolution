@@ -90,7 +90,7 @@ const styles = StyleSheet.create({
     borderColor: "#E5E7EB",
   },
   statLabel: { fontSize: 11, color: "#6B7280" },
-  statValue: { fontSize: 20, fontWeight: "700", color: "#2F6B3C", marginTop: 4 },
+  statValue: { fontSize: 20, fontWeight: "700", color: "#B3543A", marginTop: 4 },
   section: {
     backgroundColor: "#fff",
     borderRadius: 10,

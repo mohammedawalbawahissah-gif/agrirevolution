@@ -248,7 +248,7 @@ export default function MarketplaceScreen() {
             ) : (
               <TouchableOpacity style={styles.uploadButton} onPress={handlePickMedia} disabled={isUploading}>
                 {isUploading ? (
-                  <ActivityIndicator color="#2F6B3C" />
+                  <ActivityIndicator color="#B3543A" />
                 ) : (
                   <Text style={styles.uploadButtonText}>📷 Choose photo or video</Text>
                 )}
@@ -401,9 +401,9 @@ const styles = StyleSheet.create({
     textTransform: "capitalize",
   },
   cardGrade: { fontSize: 13, color: "#6B7280", marginTop: 6 },
-  cardPrice: { fontSize: 13, fontWeight: "600", color: "#2F6B3C", marginTop: 4 },
+  cardPrice: { fontSize: 13, fontWeight: "600", color: "#B3543A", marginTop: 4 },
   cardNotes: { fontSize: 12, color: "#9CA3AF", marginTop: 6, lineHeight: 16 },
-  gradeLink: { fontSize: 12, color: "#2F6B3C", fontWeight: "600", marginTop: 8 },
+  gradeLink: { fontSize: 12, color: "#B3543A", fontWeight: "600", marginTop: 8 },
   empty: { paddingTop: 60, paddingHorizontal: 12 },
   emptyText: { textAlign: "center", color: "#9CA3AF", fontSize: 14, lineHeight: 20 },
   fab: {
@@ -411,7 +411,7 @@ const styles = StyleSheet.create({
     bottom: 24,
     left: 20,
     right: 20,
-    backgroundColor: "#2F6B3C",
+    backgroundColor: "#B3543A",
     borderRadius: 10,
     paddingVertical: 14,
     alignItems: "center",
@@ -441,10 +441,10 @@ const styles = StyleSheet.create({
     paddingVertical: 7,
     backgroundColor: "#fff",
   },
-  pillActive: { backgroundColor: "#2F6B3C", borderColor: "#2F6B3C" },
+  pillActive: { backgroundColor: "#B3543A", borderColor: "#B3543A" },
   pillText: { fontSize: 12, color: "#374151" },
   pillTextActive: { color: "#fff", fontWeight: "600" },
-  submitButton: { backgroundColor: "#2F6B3C", borderRadius: 8, paddingVertical: 14, alignItems: "center" },
+  submitButton: { backgroundColor: "#B3543A", borderRadius: 8, paddingVertical: 14, alignItems: "center" },
   submitButtonText: { color: "#fff", fontWeight: "600", fontSize: 15 },
   cancelText: { textAlign: "center", color: "#6B7280", marginTop: 12, fontSize: 14 },
   uploadButton: {
@@ -457,7 +457,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     backgroundColor: "#F9FAFB",
   },
-  uploadButtonText: { color: "#2F6B3C", fontWeight: "600", fontSize: 14 },
+  uploadButtonText: { color: "#B3543A", fontWeight: "600", fontSize: 14 },
   mediaPreviewRow: {
     flexDirection: "row",
     alignItems: "center",

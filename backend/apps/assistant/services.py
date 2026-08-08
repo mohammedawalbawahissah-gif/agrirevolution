@@ -1,18 +1,20 @@
 """
-Chat orchestration for the AI Assistant widget.
+General-purpose conversational assistant, available to every role.
 
-Stateless by design: the frontend keeps the conversation history and resends
-it each turn (same reasoning as any stateless chat integration — no server-
-side session to expire or leak across users). This backend's only job per
-turn is: build a system prompt personalized to the caller, run Claude's
-tool-use loop against the read-only tools in tools.py, and return the final
-reply.
+Deliberately stateless and read-only from the platform's point of view: the
+backend never hands the model a database connection, tool, or query result,
+so there is nothing for it to leak even if asked. The one hard restriction
+called out explicitly in the system prompt is a belt-and-braces instruction
+on top of that: never disclose, guess at, or discuss any other user's
+personal information, and never disclose or discuss transaction/payment
+details, even the requesting user's own — that data is sensitive enough
+(MoMo numbers, amounts, provider references) that it belongs in the
+Transactions screen behind its normal permission checks, not in freeform
+chat.
 
-The system prompt and the tool set (see tools.py) are the two enforcement
-points for the one hard restriction on this assistant: it must never surface
-another user's personal information, and it must never discuss transaction/
-payment details. No tool here touches the User or Transaction models at all,
-so that restriction holds even if the model ignores the system prompt.
+Everything else — farming advice, how the marketplace/equipment/weather
+features work, general agronomy, produce grading, pricing intuition — is
+fair game.
 """
 
 import logging
@@ -20,87 +22,107 @@ import logging
 from anthropic import Anthropic
 from django.conf import settings
 
-from .tools import TOOL_DEFINITIONS, run_tool
-
 logger = logging.getLogger(__name__)
 
 MODEL = "claude-sonnet-4-5"
-MAX_TOOL_ROUNDS = 4
-
-ROLE_CONTEXT = {
-    "farmer": "a smallholder farmer using AgriRevolution to get equipment, sell produce, and get weather guidance",
-    "dealer": "an equipment dealer using AgriRevolution to list and rent out farm equipment",
-    "buyer": "a produce buyer using AgriRevolution to source crops from farmers",
-    "admin": "a platform administrator for AgriRevolution",
-}
+MAX_HISTORY_MESSAGES = 20  # keep requests small; the widget only needs recent context
 
 
 class AssistantServiceError(Exception):
-    """Raised when the assistant can't complete a turn — callers should surface this to the user."""
+    """Raised when the assistant can't produce a reply — callers should degrade gracefully."""
 
 
-def _system_prompt(user) -> str:
-    role_context = ROLE_CONTEXT.get(user.role, "a user of AgriRevolution")
-    return f"""You are the AI Assistant inside AgriRevolution, a platform connecting Ghanaian smallholder farmers, equipment dealers, and produce buyers around Tamale, Northern Ghana.
+ROLE_CONTEXT = {
+    "farmer": (
+        "This user is a FARMER. They list produce for sale, book equipment (ploughing, "
+        "planting, harvesting, spraying, transport) from dealers, get AI-graded pricing "
+        "for their harvest, and can ask for weather-based planting/harvest guidance. "
+        "Many farmers have limited formal education and may also use USSD/voice, not just "
+        "the app — keep language plain and concrete."
+    ),
+    "dealer": (
+        "This user is an EQUIPMENT DEALER. They list equipment for hire and manage "
+        "incoming booking requests from farmers (confirm, track progress, complete)."
+    ),
+    "buyer": (
+        "This user BUYS produce on the platform. They browse listings farmers have posted, "
+        "place orders (choosing pickup or delivery, and a payment channel the farmer "
+        "accepts), and track order status through to delivery."
+    ),
+    "admin": (
+        "This user is a PLATFORM ADMIN. They oversee users, equipment, listings, bookings, "
+        "and orders platform-wide, and can act on behalf of farmers/dealers who can't use "
+        "the app themselves. They may ask about how features work or how to help another "
+        "user, but you still must not reveal specific personal or transaction details about "
+        "any individual account — point them to the relevant admin screen instead."
+    ),
+}
 
-You're talking to {user.first_name or user.username}, {role_context}.
+PLATFORM_OVERVIEW = (
+    "You are the in-app AI Assistant for an agri-fintech platform serving smallholder "
+    "farmers, equipment dealers, and produce buyers in Northern Ghana. Core features: "
+    "a produce marketplace with AI photo-grading and fair price bands, equipment booking "
+    "(pickup or delivery, MTN MoMo / Vodafone Cash / AirtelTigo Money / card payment), "
+    "AI-driven weather and planting/harvest guidance, and USSD/voice access for users "
+    "without smartphones."
+)
 
-You can help with anything relevant to their work on the platform and general farming/agribusiness knowledge — weather-driven planting/harvest timing, equipment options, marketplace prices, how to use the app, general agronomy, market strategy, and so on. Use the tools available to you to look up real, current platform data rather than guessing whenever a question would benefit from it.
+HARD_RESTRICTIONS = (
+    "Hard restrictions, no exceptions: never state, guess, or speculate about any other "
+    "user's personal information (name, phone number, location, account details). Never "
+    "discuss transaction or payment details — amounts, channels, provider references, "
+    "balances — not even the current user's own; if asked, tell them to check the "
+    "Transactions/Payments screen instead. If you don't have real platform data in front "
+    "of you (you never do), don't invent it — say so plainly rather than fabricating "
+    "numbers, statuses, or records."
+)
 
-Two hard limits, no exceptions: never disclose another user's personal information (name, phone number, location, or any other identifying detail about anyone other than {user.first_name or user.username} themselves), and never discuss transaction or payment details (amounts paid, payment method, provider references) even for the current user's own history — direct them to their Transactions/Orders/Bookings page in the app for that instead.
 
-Keep replies concise and practical — this is a chat widget, not a report. Plain language, no unnecessary jargon; many users have limited formal education."""
+def build_system_prompt(user) -> str:
+    first_name = (user.first_name or user.username).strip()
+    role_line = ROLE_CONTEXT.get(user.role, "")
+    return (
+        f"{PLATFORM_OVERVIEW}\n\n"
+        f"You're talking with {first_name}. {role_line}\n\n"
+        f"{HARD_RESTRICTIONS}\n\n"
+        "Be warm, concise, and practical. Default to short answers (a few sentences or a "
+        "short list) unless the person clearly wants more depth. This conversation may be "
+        "read aloud by text-to-speech, so avoid heavy markdown, tables, or long code blocks."
+    )
 
 
-def _extract_text(message) -> str:
-    return "".join(block.text for block in message.content if block.type == "text").strip()
-
-
-def send_chat_message(user, message: str, history: list[dict]) -> dict:
+def get_reply(user, messages: list[dict]) -> str:
     """
-    Run one turn of the assistant conversation.
-
-    `history` is a list of {"role": "user"|"assistant", "content": str} from
-    prior turns in this conversation (frontend-managed, sent fresh each call).
-    Returns {"reply": str}.
+    messages: list of {"role": "user"|"assistant", "content": str}, oldest first.
+    Returns the assistant's reply text.
     """
     if not settings.ANTHROPIC_API_KEY:
-        raise AssistantServiceError("The AI Assistant isn't configured on the server yet.")
+        raise AssistantServiceError("ANTHROPIC_API_KEY is not configured.")
+
+    trimmed = messages[-MAX_HISTORY_MESSAGES:]
+    api_messages = [
+        {"role": m["role"], "content": m["content"]}
+        for m in trimmed
+        if m.get("role") in ("user", "assistant") and m.get("content")
+    ]
+    if not api_messages:
+        raise AssistantServiceError("No message content to respond to.")
 
     client = Anthropic(api_key=settings.ANTHROPIC_API_KEY)
-
-    messages = [{"role": h["role"], "content": h["content"]} for h in history]
-    messages.append({"role": "user", "content": message})
-
     try:
-        for _ in range(MAX_TOOL_ROUNDS):
-            response = client.messages.create(
-                model=MODEL,
-                max_tokens=1024,
-                system=_system_prompt(user),
-                tools=TOOL_DEFINITIONS,
-                messages=messages,
-            )
-
-            if response.stop_reason != "tool_use":
-                return {"reply": _extract_text(response) or "I'm not sure how to respond to that — could you rephrase?"}
-
-            # Model wants to call one or more tools before replying — run them
-            # and feed the results back in, then let it continue.
-            messages.append({"role": "assistant", "content": response.content})
-            tool_results = []
-            for block in response.content:
-                if block.type != "tool_use":
-                    continue
-                result = run_tool(user, block.name, block.input or {})
-                tool_results.append(
-                    {"type": "tool_result", "tool_use_id": block.id, "content": str(result)}
-                )
-            messages.append({"role": "user", "content": tool_results})
-
-        return {"reply": "I looked into that but couldn't put together a complete answer — could you try asking again, maybe more specifically?"}
+        response = client.messages.create(
+            model=MODEL,
+            max_tokens=600,
+            system=build_system_prompt(user),
+            messages=api_messages,
+        )
+        text_blocks = [block.text for block in response.content if block.type == "text"]
+        reply = "\n".join(text_blocks).strip()
+        if not reply:
+            raise AssistantServiceError("Empty response from assistant.")
+        return reply
     except AssistantServiceError:
         raise
-    except Exception as exc:  # noqa: BLE001 - surfaced to the caller as a clean error
+    except Exception as exc:  # noqa: BLE001 - degrade gracefully upstream
         logger.error("Assistant chat failed for user=%s: %s", user.id, exc)
-        raise AssistantServiceError("The assistant couldn't respond right now. Please try again in a moment.") from exc
+        raise AssistantServiceError(f"Assistant call failed: {exc}") from exc

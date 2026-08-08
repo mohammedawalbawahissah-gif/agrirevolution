@@ -57,7 +57,7 @@ export default function FarmerOverview() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <StatCard icon={Sparkles} label="AI Weather Guidance" value={recommendations?.count ?? 0} to="/farmer/ai-assistant" accent="#3B82F6" />
         <StatCard icon={Tractor} label="Equipment Requests" value={bookings?.count ?? 0} to="/farmer/equipment" accent="#D9A441" />
-        <StatCard icon={Sprout} label="Produce Listings" value={listings?.count ?? 0} to="/farmer/marketplace" accent="#2F6B3C" />
+        <StatCard icon={Sprout} label="Produce Listings" value={listings?.count ?? 0} to="/farmer/marketplace" accent="#B3543A" />
       </div>
 
       {recommendations && recommendations.results.length > 0 && (

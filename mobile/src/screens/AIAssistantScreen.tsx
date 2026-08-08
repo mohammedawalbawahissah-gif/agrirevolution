@@ -199,7 +199,7 @@ export default function AIAssistantScreen() {
               disabled={uploadingId === listing.id}
             >
               {uploadingId === listing.id ? (
-                <ActivityIndicator color="#2F6B3C" size="small" />
+                <ActivityIndicator color="#B3543A" size="small" />
               ) : (
                 <Text style={styles.photoPickButtonText}>
                   {(photoDrafts[listing.id] ?? listing.photo_url) ? "Change photo" : "📷 Choose photo"}
@@ -276,7 +276,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   generateButton: {
-    backgroundColor: "#2F6B3C",
+    backgroundColor: "#B3543A",
     borderRadius: 8,
     paddingHorizontal: 18,
     justifyContent: "center",
@@ -322,9 +322,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     backgroundColor: "#F9FAFB",
   },
-  photoPickButtonText: { color: "#2F6B3C", fontWeight: "600", fontSize: 13 },
+  photoPickButtonText: { color: "#B3543A", fontWeight: "600", fontSize: 13 },
   cardCrop: { fontSize: 16, fontWeight: "600" },
-  cardAction: { fontSize: 14, color: "#2F6B3C", fontWeight: "600", marginTop: 4 },
+  cardAction: { fontSize: 14, color: "#B3543A", fontWeight: "600", marginTop: 4 },
   cardWindow: { fontSize: 13, color: "#6B7280", marginTop: 2 },
   cardRationale: { fontSize: 13, color: "#374151", marginTop: 8, lineHeight: 18 },
   emptyText: { textAlign: "center", color: "#9CA3AF", fontSize: 14, lineHeight: 20, paddingVertical: 20 },
@@ -340,5 +340,5 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#E5E7EB",
   },
-  gradedBadge: { fontSize: 13, fontWeight: "600", color: "#2F6B3C" },
+  gradedBadge: { fontSize: 13, fontWeight: "600", color: "#B3543A" },
 });

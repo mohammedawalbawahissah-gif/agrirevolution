@@ -1,217 +1,205 @@
 import { useEffect, useRef, useState } from "react";
-import { Bot, Mic, MicOff, Send, Sparkles, Volume2, VolumeX, X } from "lucide-react";
+import { Sparkles, X, Send, Mic, MicOff, Volume2, VolumeX } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { apiClient } from "../api/client";
 
-interface ChatTurn {
+interface ChatMessage {
   role: "user" | "assistant";
   content: string;
 }
 
-// Minimal shape for the Web Speech API — not in the standard TS lib, and
-// only webkit-prefixed in Chrome/Edge/Safari, so this is typed loosely on
-// purpose rather than pulling in a @types package for a browser-only API.
+// Web Speech API isn't in the standard TS lib yet — narrow, local typing
+// just for the bits we use, feature-detected at runtime.
+interface SpeechRecognitionResultLike {
+  0: { transcript: string };
+}
+interface SpeechRecognitionEventLike {
+  results: ArrayLike<SpeechRecognitionResultLike>;
+}
 interface SpeechRecognitionLike {
   lang: string;
-  continuous: boolean;
   interimResults: boolean;
-  onresult: ((event: any) => void) | null;
-  onerror: (() => void) | null;
+  continuous: boolean;
+  onresult: ((event: SpeechRecognitionEventLike) => void) | null;
   onend: (() => void) | null;
+  onerror: (() => void) | null;
   start: () => void;
   stop: () => void;
 }
 
-function getSpeechRecognition(): SpeechRecognitionLike | null {
-  const w = window as any;
-  const Ctor = w.SpeechRecognition || w.webkitSpeechRecognition;
-  return Ctor ? new Ctor() : null;
+function getSpeechRecognition(): (new () => SpeechRecognitionLike) | null {
+  const w = window as unknown as {
+    SpeechRecognition?: new () => SpeechRecognitionLike;
+    webkitSpeechRecognition?: new () => SpeechRecognitionLike;
+  };
+  return w.SpeechRecognition || w.webkitSpeechRecognition || null;
 }
 
-const speechSupported = typeof window !== "undefined" && ("SpeechRecognition" in window || "webkitSpeechRecognition" in window);
+const speechSupported = typeof window !== "undefined" && !!getSpeechRecognition();
 const ttsSupported = typeof window !== "undefined" && "speechSynthesis" in window;
 
 /**
- * Floating AI Assistant widget — available in every role's portal (rendered
- * once inside PortalShell, so it's shared rather than reimplemented per
- * role). Talks to POST /api/assistant/chat/, which has broad read access to
- * platform data but never touches user PII or transaction/payment records
- * (see backend apps/assistant/tools.py) — that boundary lives server-side,
- * not here, so it holds regardless of what this component sends.
+ * Floating chat widget, mounted once in PortalShell so every role gets it.
+ * Stateless on the backend — this component owns the conversation history
+ * and resends it each turn (see apps/assistant on the backend).
  */
 export default function AIAssistantWidget() {
   const { user } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
-  const [messages, setMessages] = useState<ChatTurn[]>([]);
-  const [input, setInput] = useState("");
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [draft, setDraft] = useState("");
   const [isSending, setIsSending] = useState(false);
   const [isListening, setIsListening] = useState(false);
-  const [speakReplies, setSpeakReplies] = useState(false);
-  const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
+  const [voiceOn, setVoiceOn] = useState(false);
+  const [error, setError] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
+  const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
 
   const firstName = user?.first_name || user?.username || "there";
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
-  }, [messages, isSending]);
-
-  useEffect(() => {
-    return () => {
-      recognitionRef.current?.stop();
-      window.speechSynthesis?.cancel();
-    };
-  }, []);
+  }, [messages, isOpen]);
 
   function speak(text: string) {
-    if (!ttsSupported || !speakReplies) return;
+    if (!ttsSupported || !voiceOn) return;
     window.speechSynthesis.cancel();
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.rate = 1;
     window.speechSynthesis.speak(utterance);
   }
 
-  function toggleListening() {
-    if (!speechSupported) return;
-    if (isListening) {
-      recognitionRef.current?.stop();
-      setIsListening(false);
-      return;
-    }
-    const recognition = getSpeechRecognition();
-    if (!recognition) return;
-    recognition.lang = "en-US";
-    recognition.continuous = false;
-    recognition.interimResults = false;
-    recognition.onresult = (event: any) => {
-      const transcript = event.results?.[0]?.[0]?.transcript;
-      if (transcript) setInput((prev) => (prev ? `${prev} ${transcript}` : transcript));
-    };
-    recognition.onerror = () => setIsListening(false);
-    recognition.onend = () => setIsListening(false);
-    recognitionRef.current = recognition;
-    recognition.start();
-    setIsListening(true);
-  }
-
-  async function handleSend() {
-    const message = input.trim();
-    if (!message || isSending) return;
-    setInput("");
-    const history = messages;
-    setMessages((prev) => [...prev, { role: "user", content: message }]);
+  async function sendMessage(text: string) {
+    const content = text.trim();
+    if (!content || isSending) return;
+    setError("");
+    const nextMessages: ChatMessage[] = [...messages, { role: "user", content }];
+    setMessages(nextMessages);
+    setDraft("");
     setIsSending(true);
     try {
-      const { data } = await apiClient.post<{ reply: string }>("/assistant/chat/", {
-        message,
-        history,
-      });
-      setMessages((prev) => [...prev, { role: "assistant", content: data.reply }]);
+      const { data } = await apiClient.post("/assistant/chat/", { messages: nextMessages });
+      setMessages([...nextMessages, { role: "assistant", content: data.reply }]);
       speak(data.reply);
     } catch {
-      const fallback = "Sorry, I couldn't respond just now — please try again in a moment.";
-      setMessages((prev) => [...prev, { role: "assistant", content: fallback }]);
+      setError("Couldn't reach the assistant. Please try again.");
     } finally {
       setIsSending(false);
     }
   }
 
-  if (!user) return null;
+  function toggleListening() {
+    const RecognitionCtor = getSpeechRecognition();
+    if (!RecognitionCtor) return;
+
+    if (isListening) {
+      recognitionRef.current?.stop();
+      return;
+    }
+
+    const recognition = new RecognitionCtor();
+    recognition.lang = "en-US";
+    recognition.interimResults = false;
+    recognition.continuous = false;
+    recognition.onresult = (event) => {
+      const transcript = event.results[0]?.[0]?.transcript;
+      if (transcript) sendMessage(transcript);
+    };
+    recognition.onend = () => setIsListening(false);
+    recognition.onerror = () => setIsListening(false);
+    recognitionRef.current = recognition;
+    setIsListening(true);
+    recognition.start();
+  }
 
   return (
     <>
-      {!isOpen && (
-        <button
-          onClick={() => setIsOpen(true)}
-          aria-label="Open AI Assistant"
-          className="fixed bottom-5 right-5 z-40 w-14 h-14 rounded-full bg-brand-green text-white shadow-lg flex items-center justify-center hover:scale-105 transition-transform"
-        >
-          <Sparkles size={24} />
-        </button>
-      )}
+      <button
+        onClick={() => setIsOpen((o) => !o)}
+        className="fixed bottom-6 right-6 z-40 w-14 h-14 rounded-full bg-brand-green text-white shadow-lg flex items-center justify-center hover:opacity-90 transition"
+        aria-label="Open AI Assistant"
+      >
+        {isOpen ? <X size={22} /> : <Sparkles size={22} />}
+      </button>
 
       {isOpen && (
-        <div className="fixed bottom-5 right-5 z-40 w-[360px] max-w-[calc(100vw-2.5rem)] h-[520px] max-h-[calc(100vh-2.5rem)] bg-white rounded-xl shadow-2xl border border-gray-100 flex flex-col overflow-hidden">
+        <div className="fixed bottom-24 right-6 z-40 w-[360px] max-w-[calc(100vw-3rem)] h-[520px] max-h-[70vh] bg-white rounded-2xl shadow-2xl border border-gray-100 flex flex-col overflow-hidden">
           <div className="bg-brand-green text-white px-4 py-3 flex items-center justify-between shrink-0">
             <div className="flex items-center gap-2 min-w-0">
-              <Bot size={18} className="shrink-0" />
-              <p className="font-semibold text-sm truncate">Hi {firstName}, need a hand?</p>
+              <Sparkles size={16} />
+              <p className="text-sm font-semibold truncate">AI Assistant</p>
             </div>
-            <div className="flex items-center gap-1 shrink-0">
+            <div className="flex items-center gap-1">
               {ttsSupported && (
                 <button
-                  onClick={() => setSpeakReplies((v) => !v)}
-                  title={speakReplies ? "Turn off read-aloud" : "Read replies aloud"}
-                  className="p-1.5 rounded hover:bg-white/15"
+                  onClick={() => setVoiceOn((v) => !v)}
+                  className="p-1.5 rounded-md hover:bg-white/10"
+                  title={voiceOn ? "Voice replies on" : "Voice replies off"}
                 >
-                  {speakReplies ? <Volume2 size={16} /> : <VolumeX size={16} />}
+                  {voiceOn ? <Volume2 size={16} /> : <VolumeX size={16} />}
                 </button>
               )}
-              <button onClick={() => setIsOpen(false)} title="Close" className="p-1.5 rounded hover:bg-white/15">
+              <button onClick={() => setIsOpen(false)} className="p-1.5 rounded-md hover:bg-white/10">
                 <X size={16} />
               </button>
             </div>
           </div>
 
-          <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-3 space-y-3 bg-gray-50">
-            <div className="flex">
-              <div className="bg-white border border-gray-100 rounded-lg rounded-tl-sm px-3 py-2 text-sm text-gray-700 max-w-[85%] shadow-sm">
-                Hi {firstName}! How can I help you today?
-              </div>
+          <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-4 space-y-3 bg-brand-cream/40">
+            <div className="bg-white rounded-xl border border-gray-100 px-3.5 py-2.5 text-sm text-gray-700 shadow-sm max-w-[85%]">
+              Hi {firstName}! How can I help you today?
             </div>
             {messages.map((m, i) => (
-              <div key={i} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
-                <div
-                  className={`rounded-lg px-3 py-2 text-sm max-w-[85%] shadow-sm whitespace-pre-wrap ${
-                    m.role === "user"
-                      ? "bg-brand-green text-white rounded-tr-sm"
-                      : "bg-white border border-gray-100 text-gray-700 rounded-tl-sm"
-                  }`}
-                >
-                  {m.content}
-                </div>
+              <div
+                key={i}
+                className={`px-3.5 py-2.5 rounded-xl text-sm shadow-sm max-w-[85%] whitespace-pre-wrap ${
+                  m.role === "user"
+                    ? "bg-brand-green text-white ml-auto"
+                    : "bg-white text-gray-700 border border-gray-100"
+                }`}
+              >
+                {m.content}
               </div>
             ))}
             {isSending && (
-              <div className="flex justify-start">
-                <div className="bg-white border border-gray-100 rounded-lg rounded-tl-sm px-3 py-2 text-sm text-gray-400 shadow-sm">
-                  Thinking…
-                </div>
+              <div className="bg-white rounded-xl border border-gray-100 px-3.5 py-2.5 text-sm text-gray-400 shadow-sm max-w-[85%]">
+                Thinking…
               </div>
             )}
+            {error && <p className="text-xs text-status-danger">{error}</p>}
           </div>
 
           <div className="border-t border-gray-100 p-3 flex items-end gap-2 shrink-0">
             {speechSupported && (
               <button
                 onClick={toggleListening}
-                title={isListening ? "Stop listening" : "Speak your question"}
-                className={`shrink-0 p-2 rounded-full transition-colors ${
-                  isListening ? "bg-status-danger text-white" : "bg-gray-100 text-gray-500 hover:bg-gray-200"
+                className={`shrink-0 w-9 h-9 rounded-full flex items-center justify-center transition ${
+                  isListening ? "bg-status-danger text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
                 }`}
+                title={isListening ? "Stop listening" : "Speak your question"}
               >
                 {isListening ? <MicOff size={16} /> : <Mic size={16} />}
               </button>
             )}
             <textarea
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === "Enter" && !e.shiftKey) {
                   e.preventDefault();
-                  handleSend();
+                  sendMessage(draft);
                 }
               }}
               placeholder={isListening ? "Listening…" : "Ask me anything…"}
               rows={1}
-              className="flex-1 resize-none border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-green max-h-24"
+              className="flex-1 resize-none border border-gray-300 rounded-lg px-3 py-2 text-sm max-h-24"
             />
             <button
-              onClick={handleSend}
-              disabled={!input.trim() || isSending}
-              className="shrink-0 p-2 rounded-full bg-brand-green text-white disabled:opacity-40 hover:opacity-90 transition-opacity"
+              onClick={() => sendMessage(draft)}
+              disabled={isSending || !draft.trim()}
+              className="shrink-0 w-9 h-9 rounded-full bg-brand-green text-white flex items-center justify-center disabled:opacity-40 hover:opacity-90"
             >
-              <Send size={16} />
+              <Send size={15} />
             </button>
           </div>
         </div>

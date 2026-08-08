@@ -2,8 +2,8 @@
   <!-- Content inset toward the center ~66% safe zone for Android adaptive icons -->
   <g transform="translate(30,30) scale(0.77)">
     <!-- field -->
-    <path d="M0 176 Q 64 150 128 176 T 256 168 V 256 H 0 Z" fill="#2F6B3C" />
-    <path d="M0 196 Q 64 172 128 196 T 256 190 V 256 H 0 Z" fill="#234F2C" />
+    <path d="M0 176 Q 64 150 128 176 T 256 168 V 256 H 0 Z" fill="#B3543A" />
+    <path d="M0 196 Q 64 172 128 196 T 256 190 V 256 H 0 Z" fill="#8C4029" />
 
     <!-- tractor body -->
     <g>

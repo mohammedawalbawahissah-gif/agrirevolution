@@ -1,30 +1,32 @@
+from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .serializers import ChatRequestSerializer
-from .services import AssistantServiceError, send_chat_message
+from .services import AssistantServiceError, get_reply
 
 
 class AssistantChatView(APIView):
     """
-    One turn of the AI Assistant widget's conversation. Stateless — the
-    frontend resends the running history each call (see services.py).
-    Available to every authenticated role; scoping to "no user info, no
-    transaction data" happens inside the tools/system prompt, not here.
+    POST { "messages": [{"role": "user"|"assistant", "content": "..."}, ...] }
+    -> { "reply": "..." }
+
+    Stateless: the frontend keeps conversation history and resends it each
+    turn (trimmed to the widget's visible window). No user or transaction
+    data is ever attached to the request sent to the model — see
+    services.py for the full rationale.
     """
 
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        serializer = ChatRequestSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
+        messages = request.data.get("messages")
+        if not isinstance(messages, list) or not messages:
+            return Response({"detail": "messages is required."}, status=status.HTTP_400_BAD_REQUEST)
+
         try:
-            result = send_chat_message(
-                request.user,
-                serializer.validated_data["message"],
-                serializer.validated_data.get("history", []),
-            )
+            reply = get_reply(request.user, messages)
         except AssistantServiceError as exc:
-            return Response({"detail": str(exc)}, status=503)
-        return Response(result)
+            return Response({"detail": str(exc)}, status=status.HTTP_502_BAD_GATEWAY)
+
+        return Response({"reply": reply})

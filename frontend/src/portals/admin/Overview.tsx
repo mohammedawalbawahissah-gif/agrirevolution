@@ -3,7 +3,7 @@ import { Users, Tractor, CalendarCheck, Sprout, ShoppingCart, Wallet } from "luc
 import { useFetch } from "../../hooks/useFetch";
 import type { AdminStats } from "../../types";
 
-const ROLE_COLORS = ["#2F6B3C", "#D9A441", "#3B82F6", "#8B5CF6"];
+const ROLE_COLORS = ["#B3543A", "#D9A441", "#3B82F6", "#8B5CF6"];
 const STATUS_COLORS: Record<string, string> = {
   requested: "#F59E0B",
   pending: "#F59E0B",
@@ -11,11 +11,11 @@ const STATUS_COLORS: Record<string, string> = {
   accepted: "#3B82F6",
   in_progress: "#8B5CF6",
   paid: "#8B5CF6",
-  completed: "#2F6B3C",
-  delivered: "#2F6B3C",
-  listed: "#2F6B3C",
+  completed: "#B3543A",
+  delivered: "#B3543A",
+  listed: "#B3543A",
   reserved: "#3B82F6",
-  sold: "#2F6B3C",
+  sold: "#B3543A",
   cancelled: "#DC2626",
   expired: "#6B7280",
 };
@@ -76,10 +76,10 @@ export default function Overview() {
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-        <StatCard icon={Users} label="Total Users" value={stats.users.total} accent="#2F6B3C" />
+        <StatCard icon={Users} label="Total Users" value={stats.users.total} accent="#B3543A" />
         <StatCard icon={Tractor} label="Equipment Listed" value={stats.equipment.total} accent="#D9A441" />
         <StatCard icon={CalendarCheck} label="Bookings" value={stats.bookings.total} accent="#3B82F6" />
-        <StatCard icon={Sprout} label="Produce Listings" value={stats.listings.total} accent="#2F6B3C" />
+        <StatCard icon={Sprout} label="Produce Listings" value={stats.listings.total} accent="#B3543A" />
         <StatCard icon={ShoppingCart} label="Orders" value={stats.orders.total} accent="#8B5CF6" />
         <StatCard
           icon={Wallet}

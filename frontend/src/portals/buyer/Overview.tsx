@@ -50,7 +50,7 @@ export default function BuyerOverview() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <StatCard icon={Sprout} label="Produce Available" value={listings?.count ?? 0} to="/buyer/marketplace" accent="#2F6B3C" />
+        <StatCard icon={Sprout} label="Produce Available" value={listings?.count ?? 0} to="/buyer/marketplace" accent="#B3543A" />
         <StatCard icon={ShoppingCart} label="My Orders" value={orders?.count ?? 0} to="/buyer/orders" accent="#8B5CF6" />
         <StatCard icon={Clock} label="Pending / In Progress" value={pendingCount} to="/buyer/orders" accent="#F59E0B" />
       </div>

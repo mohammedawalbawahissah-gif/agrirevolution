@@ -74,7 +74,7 @@ export default function NotificationBell() {
             </View>
 
             {isLoading && notifications.length === 0 ? (
-              <ActivityIndicator style={styles.emptyState} color="#2F6B3C" />
+              <ActivityIndicator style={styles.emptyState} color="#B3543A" />
             ) : (
               <FlatList
                 data={notifications}
@@ -166,7 +166,7 @@ const styles = StyleSheet.create({
   markAllText: {
     fontSize: 12,
     fontWeight: "600",
-    color: "#2F6B3C",
+    color: "#B3543A",
   },
   list: {
     maxHeight: 320,
@@ -211,7 +211,7 @@ const styles = StyleSheet.create({
   category: {
     fontSize: 11,
     fontWeight: "600",
-    color: "#2F6B3C",
+    color: "#B3543A",
     marginBottom: 2,
   },
   message: {

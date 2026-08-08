@@ -11,13 +11,13 @@
     <!-- sun -->
     <circle cx="192" cy="64" r="30" fill="#D9A441" />
     <!-- distant hill -->
-    <path d="M0 150 Q 70 110 140 145 T 256 130 V 256 H 0 Z" fill="#E8F1E9" />
+    <path d="M0 150 Q 70 110 140 145 T 256 130 V 256 H 0 Z" fill="#F5E6E1" />
     <!-- field -->
-    <path d="M0 176 Q 64 150 128 176 T 256 168 V 256 H 0 Z" fill="#2F6B3C" />
-    <path d="M0 196 Q 64 172 128 196 T 256 190 V 256 H 0 Z" fill="#234F2C" />
+    <path d="M0 176 Q 64 150 128 176 T 256 168 V 256 H 0 Z" fill="#B3543A" />
+    <path d="M0 196 Q 64 172 128 196 T 256 190 V 256 H 0 Z" fill="#8C4029" />
 
     <!-- crop rows -->
-    <g stroke="#3E8A4E" stroke-width="3" stroke-linecap="round">
+    <g stroke="#C97A54" stroke-width="3" stroke-linecap="round">
       <line x1="18" y1="210" x2="30" y2="196" />
       <line x1="46" y1="214" x2="58" y2="200" />
       <line x1="74" y1="216" x2="86" y2="202" />

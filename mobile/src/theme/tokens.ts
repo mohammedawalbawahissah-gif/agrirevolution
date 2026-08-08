@@ -5,15 +5,15 @@
  * across web and mobile.
  */
 export const colors = {
-  brandGreen: "#2F6B3C",
-  brandGreenDark: "#234F2C",
-  brandGreenLight: "#E8F1E9",
+  brandGreen: "#B3543A",
+  brandGreenDark: "#8C4029",
+  brandGreenLight: "#F5E6E1",
   brandGold: "#D9A441",
   brandGoldDark: "#B3822F",
   brandCream: "#FBF8F2",
 
-  statusSuccess: "#2F6B3C",
-  statusSuccessBg: "#E8F1E9",
+  statusSuccess: "#2C4E4A",
+  statusSuccessBg: "#E3ECEA",
   statusWarning: "#B3822F",
   statusWarningBg: "#FBF1DD",
   statusDanger: "#B3403A",

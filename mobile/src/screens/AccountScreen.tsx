@@ -179,7 +179,7 @@ export default function AccountScreen() {
             {user.role === "farmer" ? "Farm details" : "Business details"}
           </Text>
           {isProfileLoading ? (
-            <ActivityIndicator color="#2F6B3C" style={{ marginVertical: 12 }} />
+            <ActivityIndicator color="#B3543A" style={{ marginVertical: 12 }} />
           ) : isEditingProfile ? (
             <>
               {user.role === "farmer" && (
@@ -309,7 +309,7 @@ const styles = StyleSheet.create({
     width: 72,
     height: 72,
     borderRadius: 36,
-    backgroundColor: "#2F6B3C",
+    backgroundColor: "#B3543A",
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 12,
@@ -354,7 +354,7 @@ const styles = StyleSheet.create({
   },
   error: { color: "#DC2626", fontSize: 13, marginTop: 8 },
   saveButton: {
-    backgroundColor: "#2F6B3C",
+    backgroundColor: "#B3543A",
     borderRadius: 8,
     paddingVertical: 12,
     alignItems: "center",
@@ -362,7 +362,7 @@ const styles = StyleSheet.create({
   },
   saveButtonText: { color: "#fff", fontWeight: "600", fontSize: 14 },
   cancelText: { textAlign: "center", color: "#6B7280", marginTop: 12, marginBottom: 12, fontSize: 13 },
-  editLink: { color: "#2F6B3C", fontWeight: "600", fontSize: 14, paddingBottom: 14 },
+  editLink: { color: "#B3543A", fontWeight: "600", fontSize: 14, paddingBottom: 14 },
   pillRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 4, marginBottom: 4 },
   pill: {
     borderWidth: 1,
@@ -372,7 +372,7 @@ const styles = StyleSheet.create({
     paddingVertical: 7,
     backgroundColor: "#fff",
   },
-  pillActive: { backgroundColor: "#2F6B3C", borderColor: "#2F6B3C" },
+  pillActive: { backgroundColor: "#B3543A", borderColor: "#B3543A" },
   pillText: { fontSize: 12, color: "#374151" },
   pillTextActive: { color: "#fff", fontWeight: "600" },
   logoutButton: {
