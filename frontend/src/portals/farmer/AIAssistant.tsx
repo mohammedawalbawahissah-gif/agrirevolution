@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { CloudSun, Leaf, ScanSearch } from "lucide-react";
+import { ChevronLeft, CloudSun, Leaf, ScanSearch, type LucideIcon } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import { useFetch } from "../../hooks/useFetch";
 import { apiClient } from "../../api/client";
@@ -350,19 +350,71 @@ function DiseaseDetectionSection() {
   );
 }
 
+type SectionKey = "weather" | "grading" | "disease";
+
+const SECTIONS: { key: SectionKey; title: string; description: string; icon: LucideIcon }[] = [
+  {
+    key: "weather",
+    title: "Weather Guidance",
+    description: "AI-driven timing for planting, harvest, and equipment requests",
+    icon: CloudSun,
+  },
+  {
+    key: "grading",
+    title: "Produce Grading",
+    description: "Photo-graded quality and a fair price band for your harvest",
+    icon: ScanSearch,
+  },
+  {
+    key: "disease",
+    title: "Disease Detection",
+    description: "Photograph a leaf or plant to check for disease or pests",
+    icon: Leaf,
+  },
+];
+
 export default function AIAssistant() {
+  const [activeSection, setActiveSection] = useState<SectionKey | null>(null);
+
   return (
-    <div className="p-4 md:p-8 max-w-4xl mx-auto space-y-10">
-      <div>
+    <div className="p-4 md:p-8 max-w-4xl mx-auto">
+      <div className="mb-6">
         <h1 className="text-2xl font-bold">AI Assistant</h1>
         <p className="text-sm text-gray-500 mt-1">
           Weather guidance, produce grading, and disease detection, powered by AI
         </p>
       </div>
 
-      <WeatherGuidanceSection />
-      <ProduceGradingSection />
-      <DiseaseDetectionSection />
+      {activeSection === null ? (
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+          {SECTIONS.map((s) => (
+            <button
+              key={s.key}
+              onClick={() => setActiveSection(s.key)}
+              className="aspect-square bg-white rounded-xl shadow-sm border border-gray-100 p-5 flex flex-col items-center justify-center text-center gap-2 hover:border-brand-green hover:shadow-md transition-all"
+            >
+              <div className="w-12 h-12 rounded-full bg-brand-green-light flex items-center justify-center shrink-0">
+                <s.icon size={22} className="text-brand-green" />
+              </div>
+              <p className="font-semibold text-sm">{s.title}</p>
+              <p className="text-xs text-gray-500">{s.description}</p>
+            </button>
+          ))}
+        </div>
+      ) : (
+        <div>
+          <button
+            onClick={() => setActiveSection(null)}
+            className="flex items-center gap-1 text-sm text-gray-500 hover:text-brand-green mb-4"
+          >
+            <ChevronLeft size={16} />
+            All AI Features
+          </button>
+          {activeSection === "weather" && <WeatherGuidanceSection />}
+          {activeSection === "grading" && <ProduceGradingSection />}
+          {activeSection === "disease" && <DiseaseDetectionSection />}
+        </div>
+      )}
     </div>
   );
 }
