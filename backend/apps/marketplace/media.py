@@ -1,7 +1,9 @@
 """
-Media upload for produce listings — replaces the old "paste a photo URL"
-flow with an actual upload, so farmers with a smartphone camera can attach
-a photo or short video directly.
+Media upload — shared Cloudinary upload logic for anything in the app that
+used to be a "paste a URL" field (produce listing photos/videos, equipment
+photos). Lives in apps.marketplace since that's where it was first built,
+but upload_media() below is generic and imported directly by
+apps.equipment.views for equipment photos too.
 
 Uses Cloudinary because Render's filesystem is ephemeral (nothing saved to
 local disk survives a redeploy), so uploads need to land somewhere that
@@ -43,9 +45,14 @@ def _ensure_configured():
     _configured = True
 
 
-def upload_listing_media(file) -> dict:
+def upload_media(file, *, folder: str, allow_video: bool = True) -> dict:
     """
     file: a Django UploadedFile (request.FILES["file"]).
+    folder: Cloudinary folder to upload into (kept separate per feature —
+    "agrirevolution/listings", "agrirevolution/equipment" — so media is easy
+    to browse/manage in the Cloudinary dashboard by what it belongs to).
+    allow_video: equipment photos are image-only; produce listings allow a
+    short video too (useful for showing produce quality/quantity in motion).
     Returns {"url": "...", "media_type": "image"|"video"}.
     """
     _ensure_configured()
@@ -54,10 +61,13 @@ def upload_listing_media(file) -> dict:
     if content_type in ALLOWED_IMAGE_TYPES:
         media_type = "image"
     elif content_type in ALLOWED_VIDEO_TYPES:
+        if not allow_video:
+            raise MediaUploadError("Video uploads aren't supported here — please upload a photo instead.")
         media_type = "video"
     else:
         raise MediaUploadError(
-            f"Unsupported file type '{content_type}'. Upload a JPEG/PNG/WEBP photo or an MP4/MOV/WEBM video."
+            f"Unsupported file type '{content_type}'. Upload a JPEG/PNG/WEBP photo"
+            + (" or an MP4/MOV/WEBM video." if allow_video else ".")
         )
 
     if file.size > MAX_UPLOAD_BYTES:
@@ -67,10 +77,14 @@ def upload_listing_media(file) -> dict:
         result = cloudinary.uploader.upload(
             file,
             resource_type="video" if media_type == "video" else "image",
-            folder="agrirevolution/listings",
+            folder=folder,
         )
     except Exception as exc:  # noqa: BLE001 - surfaced to the caller as a clean error
         logger.error("Cloudinary upload failed: %s", exc)
         raise MediaUploadError(f"Upload failed: {exc}") from exc
 
     return {"url": result["secure_url"], "media_type": media_type}
+
+
+def upload_listing_media(file) -> dict:
+    return upload_media(file, folder="agrirevolution/listings", allow_video=True)

@@ -18,6 +18,7 @@ class Equipment(models.Model):
     rate_per_acre_ghs = models.DecimalField(max_digits=8, decimal_places=2)
     is_available = models.BooleanField(default=True)
     description = models.TextField(blank=True)
+    photo_url = models.URLField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):

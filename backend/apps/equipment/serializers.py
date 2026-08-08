@@ -5,12 +5,34 @@ from apps.payments.models import Transaction
 from .models import Equipment, EquipmentBooking
 
 
+class BookingDisplayFieldsMixin(serializers.Serializer):
+    """
+    Read-only human-readable names, mixed into every booking serializer below
+    so the frontend (detail modals especially) can show "Awal Issah" and
+    "Massey Ferguson Plough" instead of bare farmer=7/equipment=3 IDs.
+    Declared as a plain Serializer (not ModelSerializer) — DRF's serializer
+    metaclass walks the whole MRO to collect declared fields, so mixing this
+    in ahead of ModelSerializer in each class below is enough for these
+    fields to show up without repeating them three times.
+    """
+
+    equipment_name = serializers.CharField(source="equipment.name", read_only=True)
+    farmer_name = serializers.SerializerMethodField()
+    dealer_name = serializers.SerializerMethodField()
+
+    def get_farmer_name(self, obj):
+        return obj.farmer.get_full_name() or obj.farmer.username
+
+    def get_dealer_name(self, obj):
+        return obj.equipment.dealer.get_full_name() or obj.equipment.dealer.username
+
+
 class EquipmentSerializer(serializers.ModelSerializer):
     class Meta:
         model = Equipment
         fields = [
             "id", "dealer", "name", "category", "rate_per_acre_ghs",
-            "is_available", "description", "created_at",
+            "is_available", "description", "photo_url", "created_at",
         ]
         # dealer is set server-side from the authenticated user (see perform_create),
         # never trusted from client input.
@@ -28,18 +50,18 @@ class AdminEquipmentSerializer(serializers.ModelSerializer):
         model = Equipment
         fields = [
             "id", "dealer", "name", "category", "rate_per_acre_ghs",
-            "is_available", "description", "created_at",
+            "is_available", "description", "photo_url", "created_at",
         ]
         read_only_fields = ["created_at"]
 
 
-class EquipmentBookingSerializer(serializers.ModelSerializer):
+class EquipmentBookingSerializer(BookingDisplayFieldsMixin, serializers.ModelSerializer):
     class Meta:
         model = EquipmentBooking
         fields = [
             "id", "farmer", "equipment", "requested_date", "acreage", "status",
             "total_cost_ghs", "requested_via", "delivery_method", "delivery_location",
-            "payment_channel", "created_at", "updated_at",
+            "payment_channel", "equipment_name", "farmer_name", "dealer_name", "created_at", "updated_at",
         ]
         # farmer is set server-side from the authenticated user (see perform_create).
         # status changes go through EquipmentBookingStatusSerializer (dealer/admin only).
@@ -58,7 +80,7 @@ class EquipmentBookingSerializer(serializers.ModelSerializer):
         return super().create(validated_data)
 
 
-class EquipmentBookingStatusSerializer(serializers.ModelSerializer):
+class EquipmentBookingStatusSerializer(BookingDisplayFieldsMixin, serializers.ModelSerializer):
     """Used for dealer/admin requests — the only fields that make sense for them to change.
     delivery_method/delivery_location/payment_channel are the farmer's choices and stay
     read-only here so a dealer can't overwrite them while updating status."""
@@ -68,7 +90,7 @@ class EquipmentBookingStatusSerializer(serializers.ModelSerializer):
         fields = [
             "id", "farmer", "equipment", "requested_date", "acreage", "status",
             "total_cost_ghs", "requested_via", "delivery_method", "delivery_location",
-            "payment_channel", "created_at", "updated_at",
+            "payment_channel", "equipment_name", "farmer_name", "dealer_name", "created_at", "updated_at",
         ]
         read_only_fields = [
             "farmer", "equipment", "requested_date", "acreage", "total_cost_ghs",
@@ -77,7 +99,7 @@ class EquipmentBookingStatusSerializer(serializers.ModelSerializer):
         ]
 
 
-class AdminEquipmentBookingSerializer(serializers.ModelSerializer):
+class AdminEquipmentBookingSerializer(BookingDisplayFieldsMixin, serializers.ModelSerializer):
     """
     Used only for admin requests — full control, including `farmer` and
     `equipment` writable so an admin can create a booking on behalf of a
@@ -91,7 +113,7 @@ class AdminEquipmentBookingSerializer(serializers.ModelSerializer):
         fields = [
             "id", "farmer", "equipment", "requested_date", "acreage", "status",
             "total_cost_ghs", "requested_via", "delivery_method", "delivery_location",
-            "payment_channel", "created_at", "updated_at",
+            "payment_channel", "equipment_name", "farmer_name", "dealer_name", "created_at", "updated_at",
         ]
         read_only_fields = ["total_cost_ghs", "created_at", "updated_at"]
 

@@ -1,11 +1,12 @@
 import { useState } from "react";
-import { Trash2, PauseCircle, PlayCircle, Plus, Tractor } from "lucide-react";
+import { Plus, Tractor } from "lucide-react";
 import { useFetch } from "../../hooks/useFetch";
 import { apiClient } from "../../api/client";
 import { useToast } from "../../context/ToastContext";
 import { useConfirm } from "../../context/ConfirmContext";
 import StatusBadge from "../../components/ui/StatusBadge";
 import EmptyState from "../../components/ui/EmptyState";
+import DetailModal, { type DetailAction } from "../../components/ui/DetailModal";
 import type { Paginated, Equipment, User } from "../../types";
 
 const CATEGORIES: Equipment["category"][] = ["ploughing", "planting", "harvesting", "spraying", "transport"];
@@ -14,6 +15,7 @@ export default function AdminEquipment() {
   const { data: equipment, isLoading, refetch } = useFetch<Paginated<Equipment>>("/equipment/equipment/");
   const { data: dealers } = useFetch<Paginated<User>>("/accounts/users/?role=dealer");
   const [busyId, setBusyId] = useState<number | null>(null);
+  const [openItemId, setOpenItemId] = useState<number | null>(null);
   const toast = useToast();
   const confirm = useConfirm();
 
@@ -24,6 +26,9 @@ export default function AdminEquipment() {
   const [rate, setRate] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
+
+  const openItem = equipment?.results.find((e) => e.id === openItemId) ?? null;
+  const openItemDealer = dealers?.results.find((d) => d.id === openItem?.dealer);
 
   async function toggleAvailable(item: Equipment) {
     setBusyId(item.id);
@@ -51,6 +56,7 @@ export default function AdminEquipment() {
     try {
       await apiClient.delete(`/equipment/equipment/${item.id}/`);
       toast.success(`${item.name} deleted`);
+      setOpenItemId(null);
       refetch();
     } catch {
       toast.error("Couldn't delete this listing.");
@@ -85,6 +91,17 @@ export default function AdminEquipment() {
     } finally {
       setIsSubmitting(false);
     }
+  }
+
+  function actionsFor(item: Equipment): DetailAction[] {
+    return [
+      {
+        label: item.is_available ? "Pause Listing" : "Reactivate Listing",
+        variant: "secondary",
+        onClick: () => toggleAvailable(item),
+      },
+      { label: "Delete", variant: "danger", onClick: () => deleteEquipment(item) },
+    ];
   }
 
   return (
@@ -178,61 +195,63 @@ export default function AdminEquipment() {
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
         {equipment?.results.length ? (
           <div className="overflow-x-auto">
-<table className="w-full text-sm">
-            <thead className="bg-gray-50 text-gray-500 text-xs uppercase">
-              <tr>
-                <th className="text-left px-5 py-3 font-medium">Equipment</th>
-                <th className="text-left px-5 py-3 font-medium">Category</th>
-                <th className="text-left px-5 py-3 font-medium">Rate</th>
-                <th className="text-left px-5 py-3 font-medium">Dealer ID</th>
-                <th className="text-left px-5 py-3 font-medium">Status</th>
-                <th className="text-right px-5 py-3 font-medium">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {equipment.results.map((item) => (
-                <tr key={item.id} className={busyId === item.id ? "opacity-50" : ""}>
-                  <td className="px-5 py-3 font-medium text-gray-900">{item.name}</td>
-                  <td className="px-5 py-3 text-gray-600 capitalize">{item.category}</td>
-                  <td className="px-5 py-3 text-gray-600">GHS {item.rate_per_acre_ghs}/acre</td>
-                  <td className="px-5 py-3 text-gray-500">#{item.dealer}</td>
-                  <td className="px-5 py-3">
-                    <StatusBadge
-                      status={item.is_available ? "Available" : "Paused"}
-                      tone={item.is_available ? "success" : "neutral"}
-                    />
-                  </td>
-                  <td className="px-5 py-3 text-right">
-                    <div className="flex justify-end gap-2">
-                      <button
-                        onClick={() => toggleAvailable(item)}
-                        disabled={busyId === item.id}
-                        className="text-gray-400 hover:text-brand-green transition-colors"
-                        title={item.is_available ? "Pause listing" : "Reactivate listing"}
-                      >
-                        {item.is_available ? <PauseCircle size={16} /> : <PlayCircle size={16} />}
-                      </button>
-                      <button
-                        onClick={() => deleteEquipment(item)}
-                        disabled={busyId === item.id}
-                        className="text-gray-400 hover:text-status-danger transition-colors"
-                        title="Delete"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    </div>
-                  </td>
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50 text-gray-500 text-xs uppercase">
+                <tr>
+                  <th className="text-left px-5 py-3 font-medium">Equipment</th>
+                  <th className="text-left px-5 py-3 font-medium">Category</th>
+                  <th className="text-left px-5 py-3 font-medium">Rate</th>
+                  <th className="text-left px-5 py-3 font-medium">Dealer ID</th>
+                  <th className="text-left px-5 py-3 font-medium">Status</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-</div>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {equipment.results.map((item) => (
+                  <tr
+                    key={item.id}
+                    onClick={() => setOpenItemId(item.id)}
+                    className={`cursor-pointer hover:bg-gray-50 transition-colors ${busyId === item.id ? "opacity-50" : ""}`}
+                  >
+                    <td className="px-5 py-3 font-medium text-gray-900">{item.name}</td>
+                    <td className="px-5 py-3 text-gray-600 capitalize">{item.category}</td>
+                    <td className="px-5 py-3 text-gray-600">GHS {item.rate_per_acre_ghs}/acre</td>
+                    <td className="px-5 py-3 text-gray-500">#{item.dealer}</td>
+                    <td className="px-5 py-3">
+                      <StatusBadge
+                        status={item.is_available ? "Available" : "Paused"}
+                        tone={item.is_available ? "success" : "neutral"}
+                      />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         ) : !isLoading ? (
           <EmptyState icon={Tractor} title="No equipment listed yet" description="Dealer listings will appear here." />
         ) : (
           <p className="px-5 py-8 text-center text-sm text-gray-400">Loading…</p>
         )}
       </div>
+
+      <DetailModal
+        isOpen={openItem !== null}
+        onClose={() => setOpenItemId(null)}
+        title={openItem?.name ?? ""}
+        status={openItem ? (openItem.is_available ? "Available" : "Paused") : undefined}
+        isBusy={busyId === openItem?.id}
+        fields={
+          openItem
+            ? [
+                { label: "Category", value: openItem.category },
+                { label: "Rate", value: `GHS ${openItem.rate_per_acre_ghs}/acre` },
+                { label: "Dealer", value: openItemDealer ? `${openItemDealer.first_name} ${openItemDealer.last_name}` : `#${openItem.dealer}` },
+                ...(openItem.description ? [{ label: "Description", value: openItem.description }] : []),
+              ]
+            : []
+        }
+        actions={openItem ? actionsFor(openItem) : []}
+      />
     </div>
   );
 }

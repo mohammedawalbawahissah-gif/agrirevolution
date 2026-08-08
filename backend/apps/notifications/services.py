@@ -102,15 +102,23 @@ def send_notification(notification: Notification) -> None:
     notification.save(update_fields=["is_sent", "sent_at"])
 
 
-def notify(user, channel: str, category: str, message: str) -> Notification:
+def notify(user, channel: str, category: str, message: str, action_url: str = "") -> Notification:
     """
     Convenience helper: create a Notification row and attempt to send it
     immediately. Send failures are logged and swallowed here — the
     Notification row still exists as a record of intent, with is_sent=False,
     so nothing about the triggering action (booking created, order placed,
     etc.) is blocked by a downstream SMS/push failure.
+
+    `action_url` is a relative in-app path (e.g. "/farmer/orders") the
+    frontend navigates to when the notification is clicked — pass the
+    role-appropriate destination for whoever `user` is, since the same
+    event (e.g. "order placed") sends different notifications to different
+    roles with different relevant pages.
     """
-    notification = Notification.objects.create(user=user, channel=channel, category=category, message=message)
+    notification = Notification.objects.create(
+        user=user, channel=channel, category=category, message=message, action_url=action_url
+    )
     try:
         send_notification(notification)
     except NotificationServiceError as exc:

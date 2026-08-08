@@ -5,6 +5,27 @@ from apps.payments.models import Transaction
 from .models import Order, ProduceListing
 
 
+class OrderDisplayFieldsMixin(serializers.Serializer):
+    """
+    Read-only human-readable names, mixed into both order serializers below
+    so the frontend (detail modals especially) can show "Maize" / "Awal
+    Issah" instead of bare listing=3/buyer=7 IDs. See
+    apps.equipment.serializers.BookingDisplayFieldsMixin for the same
+    pattern and the note on why mixing a plain Serializer ahead of
+    ModelSerializer works with DRF's field-collecting metaclass.
+    """
+
+    listing_crop = serializers.CharField(source="listing.crop", read_only=True)
+    buyer_name = serializers.SerializerMethodField()
+    farmer_name = serializers.SerializerMethodField()
+
+    def get_buyer_name(self, obj):
+        return obj.buyer.get_full_name() or obj.buyer.username
+
+    def get_farmer_name(self, obj):
+        return obj.listing.farmer.get_full_name() or obj.listing.farmer.username
+
+
 class ProduceListingSerializer(serializers.ModelSerializer):
     class Meta:
         model = ProduceListing
@@ -57,7 +78,7 @@ class AdminProduceListingSerializer(serializers.ModelSerializer):
         return value
 
 
-class OrderSerializer(serializers.ModelSerializer):
+class OrderSerializer(OrderDisplayFieldsMixin, serializers.ModelSerializer):
     """Used for buyer requests — the buyer sets delivery/payment choices at creation time."""
 
     class Meta:
@@ -65,7 +86,7 @@ class OrderSerializer(serializers.ModelSerializer):
         fields = [
             "id", "listing", "buyer", "agreed_price_ghs", "status",
             "delivery_method", "delivery_address", "payment_method",
-            "created_at", "updated_at",
+            "listing_crop", "buyer_name", "farmer_name", "created_at", "updated_at",
         ]
         # buyer is set server-side from the authenticated user (see perform_create).
         read_only_fields = ["buyer", "status", "created_at", "updated_at"]
@@ -87,7 +108,7 @@ class OrderSerializer(serializers.ModelSerializer):
         return attrs
 
 
-class OrderStatusSerializer(serializers.ModelSerializer):
+class OrderStatusSerializer(OrderDisplayFieldsMixin, serializers.ModelSerializer):
     """Used for farmer/admin requests — only status is meant to change; the buyer's delivery/payment choices stay put."""
 
     class Meta:
@@ -95,7 +116,7 @@ class OrderStatusSerializer(serializers.ModelSerializer):
         fields = [
             "id", "listing", "buyer", "agreed_price_ghs", "status",
             "delivery_method", "delivery_address", "payment_method",
-            "created_at", "updated_at",
+            "listing_crop", "buyer_name", "farmer_name", "created_at", "updated_at",
         ]
         read_only_fields = [
             "buyer", "listing", "agreed_price_ghs", "delivery_method",

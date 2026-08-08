@@ -23,6 +23,10 @@ class Notification(models.Model):
     sent_at = models.DateTimeField(null=True, blank=True)
     is_read = models.BooleanField(default=False)
     read_at = models.DateTimeField(null=True, blank=True)
+    action_url = models.CharField(
+        max_length=255, blank=True,
+        help_text="Relative in-app path to navigate to when this notification is clicked, e.g. '/farmer/orders'.",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

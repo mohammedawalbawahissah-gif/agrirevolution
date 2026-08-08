@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Bell, CheckCheck } from "lucide-react";
 import { useNotifications } from "../hooks/useNotifications";
 import type { AppNotification } from "../types";
@@ -31,6 +32,7 @@ export default function NotificationBell() {
   const [isOpen, setIsOpen] = useState(false);
   const { unreadCount, notifications, isLoading, loadRecent, markRead, markAllRead } = useNotifications();
   const containerRef = useRef<HTMLDivElement>(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     if (isOpen) loadRecent();
@@ -47,7 +49,11 @@ export default function NotificationBell() {
   }, [isOpen]);
 
   return (
-    <div className="relative" ref={containerRef}>
+    // ml-auto (not justify-between on the header) is what actually pins
+    // this right — on desktop the hamburger button and its spacer sibling
+    // are both md:hidden, leaving this as the only flex child, and
+    // justify-between with a single child resolves to flex-start.
+    <div className="relative ml-auto" ref={containerRef}>
       <button
         type="button"
         aria-label="Notifications"
@@ -89,10 +95,14 @@ export default function NotificationBell() {
               <button
                 key={n.id}
                 type="button"
-                onClick={() => !n.is_read && markRead(n.id)}
+                onClick={() => {
+                  if (!n.is_read) markRead(n.id);
+                  setIsOpen(false);
+                  if (n.action_url) navigate(n.action_url);
+                }}
                 className={`w-full text-left px-4 py-3 border-b last:border-b-0 hover:bg-gray-50 transition-colors ${
                   n.is_read ? "" : "bg-brand-green/5"
-                }`}
+                } ${n.action_url ? "cursor-pointer" : ""}`}
               >
                 <div className="flex items-start gap-2">
                   {!n.is_read && <span className="mt-1.5 w-1.5 h-1.5 rounded-full bg-brand-gold shrink-0" />}

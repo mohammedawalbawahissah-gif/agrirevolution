@@ -1,7 +1,11 @@
 from rest_framework import viewsets
+from rest_framework.parsers import MultiPartParser
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework.views import APIView
 
 from apps.accounts.permissions import IsAdminRole, IsDealerRole, IsOwnerOrAdmin
+from apps.marketplace.media import MediaUploadError, upload_media
 from apps.notifications.models import Notification
 from apps.notifications.services import notify
 
@@ -98,6 +102,7 @@ class EquipmentBookingViewSet(viewsets.ModelViewSet):
             Notification.Category.BOOKING_UPDATE,
             f"New booking request: {booking.farmer.get_full_name() or booking.farmer.username} "
             f"wants {booking.equipment.name} for {booking.acreage} acres on {booking.requested_date}.",
+            action_url="/dealer/bookings",
         )
 
     def perform_update(self, serializer):
@@ -109,4 +114,29 @@ class EquipmentBookingViewSet(viewsets.ModelViewSet):
                 Notification.Channel.SMS,
                 Notification.Category.BOOKING_UPDATE,
                 f"Your booking for {booking.equipment.name} is now {booking.get_status_display()}.",
+                action_url="/farmer/equipment",
             )
+
+
+class EquipmentMediaUploadView(APIView):
+    """
+    POST multipart/form-data {"file": <photo>} -> {"url": "...", "media_type": "image"}
+
+    Dealers and admins upload here first, then use the returned url as
+    photo_url when creating or editing equipment. Images only — unlike
+    produce listings, there's no AI grading step here that would need a
+    photo/video distinction, so video is simply rejected up front.
+    """
+
+    permission_classes = [IsAuthenticated, (IsDealerRole | IsAdminRole)]
+    parser_classes = [MultiPartParser]
+
+    def post(self, request):
+        file = request.FILES.get("file")
+        if not file:
+            return Response({"detail": "file is required."}, status=400)
+        try:
+            result = upload_media(file, folder="agrirevolution/equipment", allow_video=False)
+        except MediaUploadError as exc:
+            return Response({"detail": str(exc)}, status=400)
+        return Response(result)

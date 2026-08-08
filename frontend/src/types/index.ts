@@ -96,6 +96,7 @@ export interface Equipment {
   rate_per_acre_ghs: string;
   is_available: boolean;
   description: string;
+  photo_url: string;
 }
 
 export interface EquipmentBooking {
@@ -110,6 +111,9 @@ export interface EquipmentBooking {
   delivery_method: "pickup" | "delivery";
   delivery_location: string;
   payment_channel: PaymentChannel | "";
+  equipment_name: string;
+  farmer_name: string;
+  dealer_name: string;
 }
 
 export interface Transaction {
@@ -141,6 +145,9 @@ export interface Order {
   delivery_method: "pickup" | "delivery";
   delivery_address: string;
   payment_method: PaymentChannel | "";
+  listing_crop: string;
+  buyer_name: string;
+  farmer_name: string;
 }
 
 export interface ProduceListing {
@@ -167,6 +174,7 @@ export interface AppNotification {
   channel: "sms" | "push" | "voice";
   category: "weather_alert" | "booking_update" | "listing_update" | "payment_update";
   message: string;
+  action_url: string;
   is_sent: boolean;
   sent_at: string | null;
   is_read: boolean;

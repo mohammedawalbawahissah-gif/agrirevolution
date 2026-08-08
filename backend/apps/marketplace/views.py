@@ -74,6 +74,7 @@ class ProduceListingViewSet(viewsets.ModelViewSet):
                     Notification.Category.LISTING_UPDATE,
                     f"Your {listing.crop} listing was graded {listing.ai_grade}. "
                     f"Fair price: GHS {listing.fair_price_band_low_ghs}-{listing.fair_price_band_high_ghs}.",
+                    action_url="/farmer/marketplace",
                 )
             except GradingServiceError as exc:
                 # Listing still gets created — grading can be retried via the
@@ -162,6 +163,7 @@ class OrderViewSet(viewsets.ModelViewSet):
             Notification.Category.LISTING_UPDATE,
             f"New order: {order.buyer.get_full_name() or order.buyer.username} wants to buy your "
             f"{order.listing.crop} for GHS {order.agreed_price_ghs}.",
+            action_url="/farmer/orders",
         )
 
     def perform_update(self, serializer):
@@ -173,6 +175,7 @@ class OrderViewSet(viewsets.ModelViewSet):
                 Notification.Channel.SMS,
                 Notification.Category.LISTING_UPDATE,
                 f"Your order for {order.listing.crop} is now {order.get_status_display()}.",
+                action_url="/buyer/orders",
             )
 
 
