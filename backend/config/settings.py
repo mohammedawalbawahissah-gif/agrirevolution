@@ -152,6 +152,15 @@ ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
 # Weather data provider (e.g. Open-Meteo / GMet feed) feeding the AI prediction layer
 WEATHER_PROVIDER_API_KEY = os.environ.get("WEATHER_PROVIDER_API_KEY", "")
 
-CLOUDINARY_CLOUD_NAME = os.environ.get("CLOUDINARY_CLOUD_NAME", "")
+# Cloudinary reads its own CLOUDINARY_URL env var automatically if present
+# (format: cloudinary://<api_key>:<api_secret>@<cloud_name>), so that's the
+# primary source. CLOUDINARY_CLOUD_NAME/API_KEY/API_SECRET are supported as
+# an explicit override. CLOUDINARY_USER_NAME is accepted as a fallback for
+# cloud name specifically, since that's the variable name this project's
+# Railway environment actually uses (a non-standard name for the same value).
+CLOUDINARY_CLOUD_NAME = (
+    os.environ.get("CLOUDINARY_CLOUD_NAME", "") or os.environ.get("CLOUDINARY_USER_NAME", "")
+)
 CLOUDINARY_API_KEY = os.environ.get("CLOUDINARY_API_KEY", "")
 CLOUDINARY_API_SECRET = os.environ.get("CLOUDINARY_API_SECRET", "")
+CLOUDINARY_URL = os.environ.get("CLOUDINARY_URL", "")
