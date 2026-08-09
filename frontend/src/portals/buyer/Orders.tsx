@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { XCircle, ClipboardList } from "lucide-react";
+import { XCircle, ClipboardList, Pencil } from "lucide-react";
 import { useFetch } from "../../hooks/useFetch";
 import { useAuth } from "../../context/AuthContext";
 import { apiClient } from "../../api/client";
@@ -8,7 +8,10 @@ import { useConfirm } from "../../context/ConfirmContext";
 import StatusBadge from "../../components/ui/StatusBadge";
 import EmptyState from "../../components/ui/EmptyState";
 import Button from "../../components/ui/Button";
-import type { Paginated, Order } from "../../types";
+import type { Paginated, Order, PaymentChannel } from "../../types";
+import { PAYMENT_CHANNEL_LABELS } from "../../types";
+
+const PAYMENT_CHANNELS = Object.keys(PAYMENT_CHANNEL_LABELS) as PaymentChannel[];
 
 export default function BuyerOrders() {
   const { user } = useAuth();
@@ -19,6 +22,47 @@ export default function BuyerOrders() {
 
   const [busyId, setBusyId] = useState<number | null>(null);
   const [paymentMessage, setPaymentMessage] = useState<Record<number, string>>({});
+
+  const [editingOrder, setEditingOrder] = useState<Order | null>(null);
+  const [editDeliveryMethod, setEditDeliveryMethod] = useState<"pickup" | "delivery">("pickup");
+  const [editDeliveryAddress, setEditDeliveryAddress] = useState("");
+  const [editPaymentMethod, setEditPaymentMethod] = useState<PaymentChannel | "">("");
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
+  const [editError, setEditError] = useState("");
+
+  function openEdit(order: Order) {
+    setEditingOrder(order);
+    setEditDeliveryMethod(order.delivery_method);
+    setEditDeliveryAddress(order.delivery_address);
+    setEditPaymentMethod(order.payment_method);
+    setEditError("");
+  }
+
+  async function handleSaveEdit() {
+    if (!editingOrder) return;
+    setEditError("");
+    if (editDeliveryMethod === "delivery" && !editDeliveryAddress.trim()) {
+      setEditError("Delivery address is required for delivery orders.");
+      return;
+    }
+    setIsSavingEdit(true);
+    try {
+      await apiClient.patch(`/marketplace/orders/${editingOrder.id}/`, {
+        delivery_method: editDeliveryMethod,
+        delivery_address: editDeliveryMethod === "delivery" ? editDeliveryAddress : "",
+        payment_method: editPaymentMethod || undefined,
+      });
+      toast.success(`Order #${editingOrder.id} updated`);
+      setEditingOrder(null);
+      refetch();
+    } catch (err: unknown) {
+      const message =
+        (err as { response?: { data?: { non_field_errors?: string[] } } })?.response?.data?.non_field_errors?.[0];
+      setEditError(message || "Couldn't save changes. Please try again.");
+    } finally {
+      setIsSavingEdit(false);
+    }
+  }
 
   async function handleCancelOrder(order: Order) {
     const ok = await confirm({
@@ -85,6 +129,16 @@ export default function BuyerOrders() {
                         Pay via MoMo
                       </Button>
                     )}
+                    {o.status === "pending" && (
+                      <button
+                        onClick={() => openEdit(o)}
+                        disabled={busyId === o.id}
+                        className="text-gray-400 hover:text-brand-green transition-colors"
+                        title="Edit order"
+                      >
+                        <Pencil size={16} />
+                      </button>
+                    )}
                     {(o.status === "pending" || o.status === "accepted") && (
                       <button
                         onClick={() => handleCancelOrder(o)}
@@ -113,6 +167,62 @@ export default function BuyerOrders() {
           />
         )}
       </section>
+
+      {editingOrder && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 px-4">
+          <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-sm">
+            <h3 className="font-semibold mb-4">Edit Order #{editingOrder.id}</h3>
+
+            <label className="block text-sm font-medium text-gray-700 mb-1">Delivery</label>
+            <select
+              value={editDeliveryMethod}
+              onChange={(e) => setEditDeliveryMethod(e.target.value as "pickup" | "delivery")}
+              className="w-full border border-gray-300 rounded-md px-3 py-2 mb-3 bg-white"
+            >
+              <option value="pickup">Pickup</option>
+              <option value="delivery">Delivery</option>
+            </select>
+
+            {editDeliveryMethod === "delivery" && (
+              <>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Delivery Address</label>
+                <input
+                  value={editDeliveryAddress}
+                  onChange={(e) => setEditDeliveryAddress(e.target.value)}
+                  placeholder="Where should this be delivered?"
+                  className="w-full border border-gray-300 rounded-md px-3 py-2 mb-3"
+                />
+              </>
+            )}
+
+            <label className="block text-sm font-medium text-gray-700 mb-1">Payment Method</label>
+            <select
+              value={editPaymentMethod}
+              onChange={(e) => setEditPaymentMethod(e.target.value as PaymentChannel)}
+              className="w-full border border-gray-300 rounded-md px-3 py-2 mb-3 bg-white"
+            >
+              <option value="">Not specified</option>
+              {PAYMENT_CHANNELS.map((channel) => (
+                <option key={channel} value={channel}>
+                  {PAYMENT_CHANNEL_LABELS[channel]}
+                </option>
+              ))}
+            </select>
+
+            {editError && <p className="text-sm text-red-600 mb-2">{editError}</p>}
+            <button
+              onClick={handleSaveEdit}
+              disabled={isSavingEdit}
+              className="w-full bg-brand-green text-white rounded-md py-2 font-medium hover:opacity-90 disabled:opacity-50"
+            >
+              {isSavingEdit ? "Saving…" : "Save Changes"}
+            </button>
+            <button onClick={() => setEditingOrder(null)} className="w-full text-center text-sm text-gray-500 mt-3">
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

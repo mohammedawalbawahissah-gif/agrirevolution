@@ -73,11 +73,29 @@ class EquipmentBookingSerializer(BookingDisplayFieldsMixin, serializers.ModelSer
             raise serializers.ValidationError(f"Must be one of {sorted(valid_channels)}.")
         return value
 
+    def validate(self, attrs):
+        # Once the dealer has acted on the booking (confirmed it or further),
+        # the farmer editing the date/acreage/delivery/payment out from under
+        # them would break what the dealer already agreed to — lock it then.
+        if self.instance and self.instance.status != EquipmentBooking.Status.REQUESTED:
+            raise serializers.ValidationError(
+                "This booking can no longer be edited — it's already been "
+                f"{self.instance.get_status_display()}."
+            )
+        return attrs
+
     def create(self, validated_data):
         equipment = validated_data["equipment"]
         acreage = validated_data["acreage"]
         validated_data["total_cost_ghs"] = equipment.rate_per_acre_ghs * acreage
         return super().create(validated_data)
+
+    def update(self, instance, validated_data):
+        # Acreage drives the cost — keep total_cost_ghs correct if it changes.
+        acreage = validated_data.get("acreage", instance.acreage)
+        equipment = validated_data.get("equipment", instance.equipment)
+        validated_data["total_cost_ghs"] = equipment.rate_per_acre_ghs * acreage
+        return super().update(instance, validated_data)
 
 
 class EquipmentBookingStatusSerializer(BookingDisplayFieldsMixin, serializers.ModelSerializer):

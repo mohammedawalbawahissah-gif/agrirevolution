@@ -18,7 +18,9 @@ export default function EquipmentTab() {
     [user?.id]
   );
 
-  const [selected, setSelected] = useState<Equipment | null>(null);
+  const [formMode, setFormMode] = useState<
+    { type: "create"; equipment: Equipment } | { type: "edit"; booking: EquipmentBooking } | null
+  >(null);
   const [acreage, setAcreage] = useState("");
   const [date, setDate] = useState("");
   const [deliveryMethod, setDeliveryMethod] = useState<"pickup" | "delivery">("pickup");
@@ -30,29 +32,53 @@ export default function EquipmentTab() {
   const [payingBookingId, setPayingBookingId] = useState<number | null>(null);
   const [paymentMessage, setPaymentMessage] = useState<Record<number, string>>({});
 
-  async function handleBook() {
-    if (!selected) return;
+  function openCreateForm(equipment: Equipment) {
+    setFormMode({ type: "create", equipment });
+    setAcreage("");
+    setDate("");
+    setDeliveryMethod("pickup");
+    setDeliveryLocation("");
+    setPaymentChannel("mtn_momo");
+    setError("");
+  }
+
+  function openEditForm(booking: EquipmentBooking) {
+    setFormMode({ type: "edit", booking });
+    setAcreage(booking.acreage);
+    setDate(booking.requested_date);
+    setDeliveryMethod(booking.delivery_method);
+    setDeliveryLocation(booking.delivery_location);
+    setPaymentChannel((booking.payment_channel as PaymentChannel) || "mtn_momo");
+    setError("");
+  }
+
+  async function handleSubmitBooking() {
+    if (!formMode) return;
     setError("");
     setIsBooking(true);
+    const payload = {
+      requested_date: date,
+      acreage: parseFloat(acreage),
+      delivery_method: deliveryMethod,
+      delivery_location: deliveryLocation || undefined,
+      payment_channel: paymentChannel,
+    };
     try {
-      await apiClient.post("/equipment/bookings/", {
-        equipment: selected.id,
-        requested_date: date,
-        acreage: parseFloat(acreage),
-        requested_via: "app",
-        delivery_method: deliveryMethod,
-        delivery_location: deliveryLocation || undefined,
-        payment_channel: paymentChannel,
-      });
-      setSelected(null);
-      setAcreage("");
-      setDate("");
-      setDeliveryMethod("pickup");
-      setDeliveryLocation("");
-      setPaymentChannel("mtn_momo");
+      if (formMode.type === "edit") {
+        await apiClient.patch(`/equipment/bookings/${formMode.booking.id}/`, payload);
+      } else {
+        await apiClient.post("/equipment/bookings/", {
+          ...payload,
+          equipment: formMode.equipment.id,
+          requested_via: "app",
+        });
+      }
+      setFormMode(null);
       refetchBookings();
-    } catch {
-      setError("Could not submit request. Check the details and try again.");
+    } catch (err: unknown) {
+      const message =
+        (err as { response?: { data?: { non_field_errors?: string[] } } })?.response?.data?.non_field_errors?.[0];
+      setError(message || "Could not submit request. Check the details and try again.");
     } finally {
       setIsBooking(false);
     }
@@ -93,7 +119,7 @@ export default function EquipmentTab() {
             <p className="text-sm text-gray-500 capitalize">{item.category}</p>
             <p className="text-brand-green font-semibold mt-2">GHS {item.rate_per_acre_ghs} / acre</p>
             <button
-              onClick={() => setSelected(item)}
+              onClick={() => openCreateForm(item)}
               className="mt-3 w-full bg-brand-green text-white text-sm rounded-md py-2 hover:opacity-90"
             >
               Request
@@ -105,10 +131,12 @@ export default function EquipmentTab() {
         )}
       </div>
 
-      {selected && (
+      {formMode && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 px-4">
           <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-sm">
-            <h3 className="font-semibold mb-4">Request {selected.name}</h3>
+            <h3 className="font-semibold mb-4">
+              {formMode.type === "edit" ? `Edit Request — ${formMode.booking.equipment_name ?? ""}` : `Request ${formMode.equipment.name}`}
+            </h3>
             <label className="block text-sm font-medium text-gray-700 mb-1">Acreage</label>
             <input
               type="number"
@@ -157,14 +185,14 @@ export default function EquipmentTab() {
             </select>
             {error && <p className="text-sm text-red-600 mb-2">{error}</p>}
             <button
-              onClick={handleBook}
+              onClick={handleSubmitBooking}
               disabled={isBooking}
               className="w-full bg-brand-green text-white rounded-md py-2 font-medium hover:opacity-90 disabled:opacity-50"
             >
-              {isBooking ? "Submitting…" : "Submit Request"}
+              {isBooking ? "Saving…" : formMode.type === "edit" ? "Save Changes" : "Submit Request"}
             </button>
             <button
-              onClick={() => setSelected(null)}
+              onClick={() => setFormMode(null)}
               className="w-full text-center text-sm text-gray-500 mt-3"
             >
               Cancel
@@ -187,6 +215,14 @@ export default function EquipmentTab() {
                   <span className="px-2 py-1 rounded-full bg-gray-100 text-gray-700 text-xs capitalize">
                     {b.status.replace("_", " ")}
                   </span>
+                  {b.status === "requested" && (
+                    <button
+                      onClick={() => openEditForm(b)}
+                      className="text-xs font-medium text-brand-green hover:underline"
+                    >
+                      Edit
+                    </button>
+                  )}
                   {(b.status === "confirmed" || b.status === "requested") && b.total_cost_ghs && (
                     <button
                       onClick={() => handlePay(b)}

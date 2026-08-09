@@ -51,6 +51,28 @@ class ProduceListingSerializer(serializers.ModelSerializer):
             )
         return value
 
+    def validate(self, attrs):
+        # Once produce is sold there's a buyer relying on what was listed —
+        # editing crop/quantity/price band expectations out from under them
+        # isn't safe. Listed/reserved/expired stay editable.
+        if self.instance and self.instance.status == ProduceListing.Status.SOLD:
+            raise serializers.ValidationError("This listing can no longer be edited — it's already sold.")
+        return attrs
+
+    def update(self, instance, validated_data):
+        # A new photo invalidates the old AI grade — it was assessed against
+        # a picture that's no longer what's shown. Reset to ungraded so the
+        # farmer (or the /grade/ action) re-assesses the actual current photo,
+        # rather than leaving a stale grade attached to different produce.
+        new_photo = validated_data.get("photo_url")
+        if new_photo and new_photo != instance.photo_url:
+            validated_data["ai_grade"] = ProduceListing.Grade.UNGRADED
+            validated_data["ai_grading_notes"] = ""
+            validated_data["grading_source"] = ""
+            validated_data["fair_price_band_low_ghs"] = None
+            validated_data["fair_price_band_high_ghs"] = None
+        return super().update(instance, validated_data)
+
 
 class AdminProduceListingSerializer(serializers.ModelSerializer):
     """
@@ -92,6 +114,13 @@ class OrderSerializer(OrderDisplayFieldsMixin, serializers.ModelSerializer):
         read_only_fields = ["buyer", "status", "created_at", "updated_at"]
 
     def validate(self, attrs):
+        # Once the farmer has accepted (or the order's moved further), the
+        # buyer changing delivery/payment terms out from under them isn't
+        # safe — only a still-pending order is editable.
+        if self.instance and self.instance.status != Order.Status.PENDING:
+            raise serializers.ValidationError(
+                f"This order can no longer be edited — it's already {self.instance.get_status_display()}."
+            )
         delivery_method = attrs.get("delivery_method", getattr(self.instance, "delivery_method", Order.DeliveryMethod.PICKUP))
         delivery_address = attrs.get("delivery_address", getattr(self.instance, "delivery_address", ""))
         if delivery_method == Order.DeliveryMethod.DELIVERY and not delivery_address:

@@ -54,7 +54,7 @@ export default function MarketplaceTab() {
     }
   }
 
-  const [formOpen, setFormOpen] = useState(false);
+  const [formTarget, setFormTarget] = useState<"new" | ProduceListing | null>(null);
   const [crop, setCrop] = useState("");
   const [quantity, setQuantity] = useState("");
   const [mediaUrl, setMediaUrl] = useState("");
@@ -66,6 +66,32 @@ export default function MarketplaceTab() {
   const [acceptedPaymentMethods, setAcceptedPaymentMethods] = useState<PaymentChannel[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
+
+  const isEditing = formTarget !== null && formTarget !== "new";
+
+  function openCreateForm() {
+    setFormTarget("new");
+    setCrop("");
+    setQuantity("");
+    setMediaUrl("");
+    setMediaType("");
+    setDeliveryMethod("pickup");
+    setDeliveryLocation("");
+    setAcceptedPaymentMethods([]);
+    setError("");
+  }
+
+  function openEditForm(listing: ProduceListing) {
+    setFormTarget(listing);
+    setCrop(listing.crop);
+    setQuantity(listing.quantity_kg);
+    setMediaUrl(listing.photo_url);
+    setMediaType(listing.media_type);
+    setDeliveryMethod(listing.delivery_method);
+    setDeliveryLocation(listing.delivery_location);
+    setAcceptedPaymentMethods(listing.accepted_payment_methods);
+    setError("");
+  }
 
   function togglePaymentMethod(channel: PaymentChannel) {
     setAcceptedPaymentMethods((prev) =>
@@ -95,31 +121,32 @@ export default function MarketplaceTab() {
     }
   }
 
-  async function handleAddListing() {
+  async function handleSubmitListing() {
     setError("");
     setIsSubmitting(true);
+    const payload = {
+      crop,
+      quantity_kg: parseFloat(quantity),
+      photo_url: mediaUrl || undefined,
+      media_type: mediaType || undefined,
+      delivery_method: deliveryMethod,
+      delivery_location: deliveryLocation || undefined,
+      accepted_payment_methods: acceptedPaymentMethods,
+    };
     try {
-      await apiClient.post("/marketplace/listings/", {
-        crop,
-        quantity_kg: parseFloat(quantity),
-        photo_url: mediaUrl || undefined,
-        media_type: mediaType || undefined,
-        listed_via: "app",
-        delivery_method: deliveryMethod,
-        delivery_location: deliveryLocation || undefined,
-        accepted_payment_methods: acceptedPaymentMethods,
-      });
-      setCrop("");
-      setQuantity("");
-      setMediaUrl("");
-      setMediaType("");
-      setDeliveryMethod("pickup");
-      setDeliveryLocation("");
-      setAcceptedPaymentMethods([]);
-      setFormOpen(false);
+      if (isEditing && formTarget !== "new" && formTarget !== null) {
+        await apiClient.patch(`/marketplace/listings/${formTarget.id}/`, payload);
+        toast.success("Listing updated.");
+      } else {
+        await apiClient.post("/marketplace/listings/", { ...payload, listed_via: "app" });
+        toast.success("Produce listed.");
+      }
+      setFormTarget(null);
       refetch();
-    } catch {
-      setError("Could not list produce. Check the details and try again.");
+    } catch (err: unknown) {
+      const message =
+        (err as { response?: { data?: { non_field_errors?: string[] } } })?.response?.data?.non_field_errors?.[0];
+      setError(message || "Could not save this listing. Check the details and try again.");
     } finally {
       setIsSubmitting(false);
     }
@@ -133,16 +160,16 @@ export default function MarketplaceTab() {
           <p className="text-sm text-gray-500 mt-1">Sell your produce with AI-graded fair pricing</p>
         </div>
         <button
-          onClick={() => setFormOpen(true)}
+          onClick={openCreateForm}
           className="bg-brand-green text-white text-sm rounded-md px-4 py-2 hover:opacity-90"
         >
           + List Produce
         </button>
       </div>
 
-      {formOpen && (
+      {formTarget !== null && (
         <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-5">
-          <h3 className="font-semibold mb-3">List Produce for Sale</h3>
+          <h3 className="font-semibold mb-3">{isEditing ? "Edit Listing" : "List Produce for Sale"}</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Crop</label>
@@ -252,13 +279,13 @@ export default function MarketplaceTab() {
           {error && <p className="text-sm text-red-600 mt-2">{error}</p>}
           <div className="flex gap-3 mt-4">
             <button
-              onClick={handleAddListing}
+              onClick={handleSubmitListing}
               disabled={isSubmitting || isUploading}
               className="bg-brand-green text-white text-sm rounded-md px-4 py-2 hover:opacity-90 disabled:opacity-50"
             >
-              {isSubmitting ? "Listing…" : "List Produce"}
+              {isSubmitting ? "Saving…" : isEditing ? "Save Changes" : "List Produce"}
             </button>
-            <button onClick={() => setFormOpen(false)} className="text-sm text-gray-500">
+            <button onClick={() => setFormTarget(null)} className="text-sm text-gray-500">
               Cancel
             </button>
           </div>
@@ -291,6 +318,14 @@ export default function MarketplaceTab() {
               >
                 {l.ai_grade === "ungraded" ? "Grade it yourself" : "Edit grade"}
               </button>
+              {l.status !== "sold" && (
+                <button
+                  onClick={() => openEditForm(l)}
+                  className="text-xs text-brand-green font-medium mt-1.5 ml-3 hover:underline"
+                >
+                  Edit listing
+                </button>
+              )}
             </div>
             <StatusBadge status={l.status} />
           </div>
