@@ -134,7 +134,7 @@ export default function MarketplaceTab() {
       accepted_payment_methods: acceptedPaymentMethods,
     };
     try {
-      if (isEditing && formTarget !== "new" && formTarget !== null) {
+      if (isEditing && formTarget) {
         await apiClient.patch(`/marketplace/listings/${formTarget.id}/`, payload);
         toast.success("Listing updated.");
       } else {
