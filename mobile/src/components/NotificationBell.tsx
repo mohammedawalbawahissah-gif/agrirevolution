@@ -9,8 +9,10 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { useNavigation } from "@react-navigation/native";
 import { useNotifications } from "../hooks/useNotifications";
-import type { AppNotification } from "../types";
+import { useAuth } from "../context/AuthContext";
+import type { AppNotification, UserRole } from "../types";
 
 const CATEGORY_LABELS: Record<AppNotification["category"], string> = {
   weather_alert: "Weather",
@@ -19,6 +21,34 @@ const CATEGORY_LABELS: Record<AppNotification["category"], string> = {
   payment_update: "Payment",
   crop_health_alert: "Crop Health",
 };
+
+// Maps a web action_url (or category, as a fallback) to the tab screen name
+// within this role's Tab.Navigator — see navigation/RootNavigator.tsx for
+// the actual tab names per role. Admin has fewer tabs than web has pages,
+// so several web destinations fall back to "Dashboard" on mobile.
+function tabForNotification(actionUrl: string, category: AppNotification["category"], role: UserRole | undefined): string {
+  if (actionUrl.includes("/ai-assistant")) return "AI Assistant";
+  if (actionUrl.includes("/orders")) return role === "farmer" ? "Orders" : "Marketplace";
+  if (actionUrl.includes("/marketplace") || actionUrl.includes("/listings")) return "Marketplace";
+  if (actionUrl.includes("/equipment") || actionUrl.includes("/bookings")) return "Equipment";
+  if (actionUrl.includes("/crop-health")) return "Crop Health";
+  if (actionUrl.includes("/transactions")) return "Dashboard";
+
+  // No action_url (older notification) — fall back on category + role.
+  switch (category) {
+    case "weather_alert":
+      return "AI Assistant";
+    case "crop_health_alert":
+      return role === "admin" ? "Crop Health" : "AI Assistant";
+    case "booking_update":
+      return "Equipment";
+    case "listing_update":
+      return role === "farmer" ? "Orders" : "Marketplace";
+    case "payment_update":
+    default:
+      return role === "admin" ? "Dashboard" : "Marketplace";
+  }
+}
 
 function timeAgo(isoDate: string): string {
   const seconds = Math.floor((Date.now() - new Date(isoDate).getTime()) / 1000);
@@ -40,10 +70,21 @@ function timeAgo(isoDate: string): string {
 export default function NotificationBell() {
   const [isOpen, setIsOpen] = useState(false);
   const { unreadCount, notifications, isLoading, loadRecent, markRead, markAllRead } = useNotifications();
+  const navigation = useNavigation();
+  const { user } = useAuth();
 
   useEffect(() => {
     if (isOpen) loadRecent();
   }, [isOpen, loadRecent]);
+
+  function handleOpenNotification(item: AppNotification) {
+    if (!item.is_read) markRead(item.id);
+    setIsOpen(false);
+    const tabName = tabForNotification(item.action_url ?? "", item.category, user?.role);
+    // @ts-expect-error navigate accepts any registered tab name at runtime;
+    // the exact literal union isn't threaded through this shared component.
+    navigation.navigate(tabName);
+  }
 
   return (
     <>
@@ -85,7 +126,7 @@ export default function NotificationBell() {
                 renderItem={({ item }) => (
                   <TouchableOpacity
                     style={[styles.item, !item.is_read && styles.itemUnread]}
-                    onPress={() => !item.is_read && markRead(item.id)}
+                    onPress={() => handleOpenNotification(item)}
                   >
                     <View style={styles.itemRow}>
                       {!item.is_read && <View style={styles.dot} />}

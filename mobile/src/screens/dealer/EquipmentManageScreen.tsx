@@ -10,24 +10,20 @@ import {
   TextInput,
   ActivityIndicator,
   Alert,
+  Image,
 } from "react-native";
+import * as ImagePicker from "expo-image-picker";
 import { useAuth } from "../../context/AuthContext";
 import { useFetch } from "../../hooks/useFetch";
 import { apiClient } from "../../api/client";
 import { useToast } from "../../context/ToastContext";
 import StatusBadge from "../../components/ui/StatusBadge";
 import Button from "../../components/ui/Button";
+import DetailModal, { type DetailAction, type DetailField } from "../../components/ui/DetailModal";
 import { colors, radius } from "../../theme/tokens";
 import type { Paginated, Equipment, EquipmentBooking } from "../../types";
 
 const CATEGORIES = ["ploughing", "planting", "harvesting", "spraying", "transport"] as const;
-const BOOKING_STATUSES: EquipmentBooking["status"][] = [
-  "requested",
-  "confirmed",
-  "in_progress",
-  "completed",
-  "cancelled",
-];
 
 export default function EquipmentManageScreen() {
   const { user } = useAuth();
@@ -54,6 +50,42 @@ export default function EquipmentManageScreen() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [busyId, setBusyId] = useState<number | null>(null);
+  const [photoUrl, setPhotoUrl] = useState("");
+  const [isUploading, setIsUploading] = useState(false);
+  const [openBookingId, setOpenBookingId] = useState<number | null>(null);
+
+  const openBooking = bookings?.results.find((b) => b.id === openBookingId) ?? null;
+
+  async function handlePickPhoto() {
+    setError("");
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      setError("Photo library permission is needed to attach a photo.");
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ["images"], quality: 0.8 });
+    if (result.canceled || !result.assets?.[0]) return;
+
+    const asset = result.assets[0];
+    setIsUploading(true);
+    try {
+      const formData = new FormData();
+      // @ts-expect-error React Native's FormData file shape isn't the DOM File type
+      formData.append("file", {
+        uri: asset.uri,
+        name: asset.fileName || "upload.jpg",
+        type: asset.mimeType || "image/jpeg",
+      });
+      const { data } = await apiClient.post("/equipment/upload-media/", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      setPhotoUrl(data.url);
+    } catch {
+      setError("Upload failed. Please try a different photo.");
+    } finally {
+      setIsUploading(false);
+    }
+  }
 
   async function handleAddEquipment() {
     if (!user) return;
@@ -63,9 +95,11 @@ export default function EquipmentManageScreen() {
       await apiClient.post("/equipment/equipment/", {
         ...form,
         rate_per_acre_ghs: parseFloat(form.rate_per_acre_ghs),
+        photo_url: photoUrl || undefined,
       });
       toast.success(`${form.name} added`);
       setForm({ name: "", category: "ploughing", rate_per_acre_ghs: "", description: "" });
+      setPhotoUrl("");
       setModalVisible(false);
       refetch();
     } catch {
@@ -108,22 +142,56 @@ export default function EquipmentManageScreen() {
     }
   }
 
-  function cycleBookingStatus(booking: EquipmentBooking) {
-    const idx = BOOKING_STATUSES.indexOf(booking.status);
-    const next = BOOKING_STATUSES[(idx + 1) % BOOKING_STATUSES.length];
-    updateBookingStatus(booking, next);
-  }
-
   async function updateBookingStatus(booking: EquipmentBooking, status: EquipmentBooking["status"]) {
     setBusyId(booking.id);
     try {
       await apiClient.patch(`/equipment/bookings/${booking.id}/`, { status });
       toast.success(`Booking #${booking.id} marked ${status.replace("_", " ")}`);
+      setOpenBookingId(null);
       refetchBookings();
     } catch {
       toast.error("Couldn't update this booking.");
     } finally {
       setBusyId(null);
+    }
+  }
+
+  function confirmCancelBooking(booking: EquipmentBooking) {
+    Alert.alert("Cancel booking", `Cancel ${booking.farmer_name ?? "this farmer"}'s booking? This can't be undone.`, [
+      { text: "No", style: "cancel" },
+      { text: "Yes, cancel", style: "destructive", onPress: () => updateBookingStatus(booking, "cancelled") },
+    ]);
+  }
+
+  function bookingFields(b: EquipmentBooking): DetailField[] {
+    return [
+      { label: "Equipment", value: b.equipment_name ?? `#${b.equipment}` },
+      { label: "Farmer", value: b.farmer_name ?? `#${b.farmer}` },
+      { label: "Acreage", value: `${b.acreage} acres` },
+      { label: "Date", value: b.requested_date },
+      { label: "Cost", value: b.total_cost_ghs ? `GHS ${b.total_cost_ghs}` : "—" },
+      { label: "Delivery", value: b.delivery_method === "delivery" ? "Deliver to farmer" : "Farmer pickup" },
+      ...(b.delivery_method === "delivery" && b.delivery_location ? [{ label: "Location", value: b.delivery_location }] : []),
+      { label: "Payment", value: b.payment_channel || "Not specified" },
+    ];
+  }
+
+  function bookingActions(b: EquipmentBooking): DetailAction[] {
+    switch (b.status) {
+      case "requested":
+        return [
+          { label: "Confirm", variant: "primary", onPress: () => updateBookingStatus(b, "confirmed") },
+          { label: "Decline", variant: "danger", onPress: () => confirmCancelBooking(b) },
+        ];
+      case "confirmed":
+        return [
+          { label: "Start Job", variant: "primary", onPress: () => updateBookingStatus(b, "in_progress") },
+          { label: "Cancel", variant: "danger", onPress: () => confirmCancelBooking(b) },
+        ];
+      case "in_progress":
+        return [{ label: "Mark Completed", variant: "primary", onPress: () => updateBookingStatus(b, "completed") }];
+      default:
+        return [];
     }
   }
 
@@ -142,6 +210,7 @@ export default function EquipmentManageScreen() {
         renderItem={({ item }) => (
           <View style={[styles.card, busyId === item.id && styles.cardBusy]}>
             <View style={styles.cardHeaderRow}>
+              {item.photo_url && <Image source={{ uri: item.photo_url }} style={styles.cardThumb} />}
               <View style={{ flex: 1 }}>
                 <Text style={styles.cardName}>{item.name}</Text>
                 <Text style={styles.cardCategory}>{item.category}</Text>
@@ -175,11 +244,11 @@ export default function EquipmentManageScreen() {
               <TouchableOpacity
                 key={b.id}
                 style={styles.bookingRow}
-                onPress={() => cycleBookingStatus(b)}
+                onPress={() => setOpenBookingId(b.id)}
                 disabled={busyId === b.id}
               >
                 <Text style={styles.bookingText}>
-                  {b.acreage} acres — {b.requested_date}
+                  {b.equipment_name ?? "Booking"} — {b.farmer_name ?? `#${b.farmer}`} · {b.acreage} acres on {b.requested_date}
                 </Text>
                 <StatusBadge status={b.status} />
               </TouchableOpacity>
@@ -187,6 +256,16 @@ export default function EquipmentManageScreen() {
             {bookings?.results.length === 0 && <Text style={styles.emptyText}>No bookings yet.</Text>}
           </View>
         }
+      />
+
+      <DetailModal
+        isOpen={openBooking !== null}
+        onClose={() => setOpenBookingId(null)}
+        title={openBooking?.equipment_name ?? `Booking #${openBooking?.id ?? ""}`}
+        status={openBooking?.status}
+        isBusy={busyId === openBooking?.id}
+        fields={openBooking ? bookingFields(openBooking) : []}
+        actions={openBooking ? bookingActions(openBooking) : []}
       />
 
       <TouchableOpacity style={styles.fab} onPress={() => setModalVisible(true)}>
@@ -234,8 +313,25 @@ export default function EquipmentManageScreen() {
               value={form.description}
               onChangeText={(v) => setForm({ ...form, description: v })}
             />
+            {photoUrl ? (
+              <View style={styles.photoPreviewRow}>
+                <Image source={{ uri: photoUrl }} style={styles.photoPreview} />
+                <Text style={styles.photoPreviewText}>Photo attached</Text>
+                <TouchableOpacity onPress={() => setPhotoUrl("")}>
+                  <Text style={styles.deleteLink}>Remove</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <TouchableOpacity style={styles.photoPickButton} onPress={handlePickPhoto} disabled={isUploading}>
+                {isUploading ? (
+                  <ActivityIndicator color={colors.brandGreen} size="small" />
+                ) : (
+                  <Text style={styles.photoPickButtonText}>📷 Add a photo (optional)</Text>
+                )}
+              </TouchableOpacity>
+            )}
             {error ? <Text style={styles.error}>{error}</Text> : null}
-            <Button title="Add Equipment" onPress={handleAddEquipment} isLoading={isSubmitting} />
+            <Button title="Add Equipment" onPress={handleAddEquipment} isLoading={isSubmitting || isUploading} />
             <TouchableOpacity onPress={() => setModalVisible(false)}>
               <Text style={styles.cancelText}>Cancel</Text>
             </TouchableOpacity>
@@ -261,6 +357,7 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
   },
   cardBusy: { opacity: 0.5 },
+  cardThumb: { width: 48, height: 48, borderRadius: radius.sm, marginRight: 12 },
   cardHeaderRow: { flexDirection: "row", justifyContent: "space-between" },
   cardActions: { alignItems: "flex-end", gap: 8 },
   actionLink: { fontSize: 12, fontWeight: "600", color: colors.brandGreen },
@@ -319,5 +416,28 @@ const styles = StyleSheet.create({
   categoryChipText: { fontSize: 12, color: "#374151", textTransform: "capitalize" },
   categoryChipTextActive: { color: "#fff" },
   error: { color: colors.statusDanger, fontSize: 13, marginBottom: 8 },
+  photoPickButton: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderStyle: "dashed",
+    borderRadius: radius.sm,
+    paddingVertical: 12,
+    alignItems: "center",
+    marginBottom: 12,
+    backgroundColor: colors.brandCream,
+  },
+  photoPickButtonText: { color: colors.brandGreen, fontWeight: "600", fontSize: 13 },
+  photoPreviewRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.sm,
+    padding: 10,
+    marginBottom: 12,
+  },
+  photoPreview: { width: 40, height: 40, borderRadius: radius.sm },
+  photoPreviewText: { flex: 1, fontSize: 12, color: colors.textSecondary },
   cancelText: { textAlign: "center", color: colors.textSecondary, marginTop: 12, fontSize: 14 },
 });

@@ -91,17 +91,22 @@ export const PAYMENT_CHANNEL_LABELS: Record<PaymentChannel, string> = {
 export interface Equipment {
   id: number;
   dealer: number;
+  dealer_name?: string;
   name: string;
   category: "ploughing" | "planting" | "harvesting" | "spraying" | "transport";
   rate_per_acre_ghs: string;
   is_available: boolean;
   description: string;
+  photo_url: string;
 }
 
 export interface EquipmentBooking {
   id: number;
   farmer: number;
+  farmer_name?: string;
   equipment: number;
+  equipment_name?: string;
+  dealer_name?: string;
   requested_date: string;
   acreage: string;
   status: "requested" | "confirmed" | "in_progress" | "completed" | "cancelled";
@@ -115,7 +120,11 @@ export interface EquipmentBooking {
 export interface Order {
   id: number;
   listing: number;
+  listing_crop?: string;
+  listing_quantity_kg?: string;
   buyer: number;
+  buyer_name?: string;
+  farmer_name?: string;
   agreed_price_ghs: string;
   status: "pending" | "accepted" | "paid" | "delivered" | "cancelled";
   delivery_method: "pickup" | "delivery";

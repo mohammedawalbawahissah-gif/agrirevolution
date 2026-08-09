@@ -14,7 +14,8 @@ import * as ImagePicker from "expo-image-picker";
 import { useAuth } from "../context/AuthContext";
 import { useFetch } from "../hooks/useFetch";
 import { apiClient } from "../api/client";
-import type { Paginated, PlantingRecommendation, ProduceListing } from "../types";
+import StatusBadge from "../components/ui/StatusBadge";
+import type { DiseaseReport, Paginated, PlantingRecommendation, ProduceListing } from "../types";
 
 const ACTION_LABELS: Record<PlantingRecommendation["recommended_action"], string> = {
   plant: "Time to plant",
@@ -119,15 +120,75 @@ export default function AIAssistantScreen() {
   const ungraded = listings?.results.filter((l) => l.ai_grade === "ungraded") ?? [];
   const graded = listings?.results.filter((l) => l.ai_grade !== "ungraded") ?? [];
 
+  // --- Disease detection ---
+  const {
+    data: reports,
+    isLoading: reportsLoading,
+    refetch: refetchReports,
+  } = useFetch<Paginated<DiseaseReport>>(user ? "/cropcare/reports/" : null, [user?.id]);
+  const [diseaseCrop, setDiseaseCrop] = useState("");
+  const [diseasePhotoUrl, setDiseasePhotoUrl] = useState("");
+  const [isDiseaseUploading, setIsDiseaseUploading] = useState(false);
+  const [isDiseaseSubmitting, setIsDiseaseSubmitting] = useState(false);
+  const [diseaseError, setDiseaseError] = useState("");
+
+  async function handlePickDiseasePhoto() {
+    setDiseaseError("");
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      setDiseaseError("Photo library permission is needed.");
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ["images"], quality: 0.8 });
+    if (result.canceled || !result.assets?.[0]) return;
+
+    const asset = result.assets[0];
+    setIsDiseaseUploading(true);
+    try {
+      const formData = new FormData();
+      // @ts-expect-error React Native's FormData file shape isn't the DOM File type
+      formData.append("file", {
+        uri: asset.uri,
+        name: asset.fileName || "upload.jpg",
+        type: asset.mimeType || "image/jpeg",
+      });
+      const { data } = await apiClient.post("/cropcare/upload-media/", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      setDiseasePhotoUrl(data.url);
+    } catch {
+      setDiseaseError("Upload failed. Please try a different photo.");
+    } finally {
+      setIsDiseaseUploading(false);
+    }
+  }
+
+  async function handleCheckDisease() {
+    if (!diseaseCrop.trim() || !diseasePhotoUrl) return;
+    setDiseaseError("");
+    setIsDiseaseSubmitting(true);
+    try {
+      await apiClient.post("/cropcare/reports/", { crop: diseaseCrop.trim(), photo_url: diseasePhotoUrl });
+      setDiseaseCrop("");
+      setDiseasePhotoUrl("");
+      refetchReports();
+    } catch {
+      setDiseaseError("Could not check this photo right now. Please try again.");
+    } finally {
+      setIsDiseaseSubmitting(false);
+    }
+  }
+
   return (
     <ScrollView
       style={styles.container}
       refreshControl={
         <RefreshControl
-          refreshing={weatherLoading || listingsLoading}
+          refreshing={weatherLoading || listingsLoading || reportsLoading}
           onRefresh={() => {
             refetchWeather();
             refetchListings();
+            refetchReports();
           }}
         />
       }
@@ -242,6 +303,76 @@ export default function AIAssistantScreen() {
           </>
         )}
       </View>
+
+      {/* Disease detection */}
+      <View style={styles.sectionHeader}>
+        <Text style={styles.sectionTitle}>🌿 Disease Detection</Text>
+        <Text style={styles.sectionSubtitle}>
+          Photograph a leaf or plant showing signs of trouble for an early diagnosis
+        </Text>
+      </View>
+
+      <View style={styles.gradeCard}>
+        <TextInput
+          style={styles.photoInput}
+          placeholder="Crop (e.g. Maize, Cassava, Tomatoes)"
+          value={diseaseCrop}
+          onChangeText={setDiseaseCrop}
+        />
+        {diseasePhotoUrl ? (
+          <Image source={{ uri: diseasePhotoUrl }} style={styles.photoThumb} />
+        ) : null}
+        <TouchableOpacity style={styles.photoPickButton} onPress={handlePickDiseasePhoto} disabled={isDiseaseUploading}>
+          {isDiseaseUploading ? (
+            <ActivityIndicator color="#B3543A" size="small" />
+          ) : (
+            <Text style={styles.photoPickButtonText}>{diseasePhotoUrl ? "Change photo" : "📷 Choose photo"}</Text>
+          )}
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[
+            styles.generateButton,
+            { alignSelf: "flex-start", paddingHorizontal: 16 },
+            (isDiseaseSubmitting || isDiseaseUploading || !diseaseCrop.trim() || !diseasePhotoUrl) && styles.disabled,
+          ]}
+          onPress={handleCheckDisease}
+          disabled={isDiseaseSubmitting || isDiseaseUploading || !diseaseCrop.trim() || !diseasePhotoUrl}
+        >
+          {isDiseaseSubmitting ? (
+            <ActivityIndicator color="#fff" size="small" />
+          ) : (
+            <Text style={styles.generateButtonText}>Check for Disease</Text>
+          )}
+        </TouchableOpacity>
+        {diseaseError ? <Text style={styles.error}>{diseaseError}</Text> : null}
+      </View>
+
+      <View style={styles.list}>
+        {reports?.results.map((r) => (
+          <View key={r.id} style={styles.card}>
+            <View style={{ flexDirection: "row", gap: 12 }}>
+              <Image source={{ uri: r.photo_url }} style={styles.photoThumb} />
+              <View style={{ flex: 1 }}>
+                <View style={styles.diseaseHeaderRow}>
+                  <Text style={styles.cardCrop}>
+                    {r.crop} — {r.diagnosis || "Checking…"}
+                  </Text>
+                  <StatusBadge status={r.severity} />
+                </View>
+                {r.symptoms_observed ? <Text style={styles.cardRationale}>{r.symptoms_observed}</Text> : null}
+                {r.recommended_action ? (
+                  <Text style={[styles.cardAction, { marginTop: 6 }]}>{r.recommended_action}</Text>
+                ) : null}
+              </View>
+            </View>
+          </View>
+        ))}
+        {!reportsLoading && reports?.results.length === 0 && (
+          <Text style={styles.emptyText}>
+            No checks yet — photograph a crop showing signs of trouble to get a diagnosis.
+          </Text>
+        )}
+      </View>
     </ScrollView>
   );
 }
@@ -341,4 +472,5 @@ const styles = StyleSheet.create({
     borderColor: "#E5E7EB",
   },
   gradedBadge: { fontSize: 13, fontWeight: "600", color: "#B3543A" },
+  diseaseHeaderRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", gap: 8, flexWrap: "wrap" },
 });

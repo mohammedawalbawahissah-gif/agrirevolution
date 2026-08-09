@@ -8,10 +8,12 @@ import RegisterScreen from "../screens/auth/RegisterScreen";
 import AIAssistantScreen from "../screens/AIAssistantScreen";
 import EquipmentScreen from "../screens/EquipmentScreen";
 import MarketplaceScreen from "../screens/MarketplaceScreen";
+import OrdersScreen from "../screens/farmer/OrdersScreen";
 import AccountScreen from "../screens/AccountScreen";
 import EquipmentManageScreen from "../screens/dealer/EquipmentManageScreen";
 import BrowseProduceScreen from "../screens/buyer/BrowseProduceScreen";
 import AdminDashboardScreen from "../screens/admin/AdminDashboardScreen";
+import AdminCropHealthScreen from "../screens/admin/AdminCropHealthScreen";
 import NotificationBell from "../components/NotificationBell";
 import AIAssistantWidget from "../components/AIAssistantWidget";
 
@@ -46,6 +48,7 @@ function FarmerTabs() {
       <Tab.Screen name="AI Assistant" component={AIAssistantScreen} />
       <Tab.Screen name="Equipment" component={EquipmentScreen} />
       <Tab.Screen name="Marketplace" component={MarketplaceScreen} />
+      <Tab.Screen name="Orders" component={OrdersScreen} />
       <Tab.Screen name="Account" component={AccountScreen} />
     </Tab.Navigator>
   );
@@ -73,6 +76,7 @@ function AdminTabs() {
   return (
     <Tab.Navigator screenOptions={SHARED_HEADER_OPTIONS}>
       <Tab.Screen name="Dashboard" component={AdminDashboardScreen} />
+      <Tab.Screen name="Crop Health" component={AdminCropHealthScreen} />
       <Tab.Screen name="Account" component={AccountScreen} />
     </Tab.Navigator>
   );

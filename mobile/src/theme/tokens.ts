@@ -65,6 +65,13 @@ export const statusTone: Record<string, Tone> = {
   unverified: "neutral",
 
   listed: "info",
+
+  // crop disease severity
+  healthy: "success",
+  mild: "warning",
+  moderate: "warning",
+  severe: "danger",
+  unknown: "neutral",
 };
 
 export function toneColors(tone: Tone) {
