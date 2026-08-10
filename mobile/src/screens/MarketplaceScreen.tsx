@@ -39,7 +39,7 @@ export default function MarketplaceScreen() {
     [user?.id]
   );
 
-  const [modalVisible, setModalVisible] = useState(false);
+  const [formTarget, setFormTarget] = useState<"new" | ProduceListing | null>(null);
   const [crop, setCrop] = useState("");
   const [quantity, setQuantity] = useState("");
   const [mediaUrl, setMediaUrl] = useState("");
@@ -52,12 +52,38 @@ export default function MarketplaceScreen() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
 
+  const isEditing = formTarget !== null && formTarget !== "new";
+
   const [gradingListing, setGradingListing] = useState<ProduceListing | null>(null);
   const [manualGrade, setManualGrade] = useState<"A" | "B" | "C">("B");
   const [manualNotes, setManualNotes] = useState("");
   const [manualPriceLow, setManualPriceLow] = useState("");
   const [manualPriceHigh, setManualPriceHigh] = useState("");
   const [isGrading, setIsGrading] = useState(false);
+
+  function openCreateForm() {
+    setFormTarget("new");
+    setCrop("");
+    setQuantity("");
+    setMediaUrl("");
+    setMediaType("");
+    setDeliveryMethod("pickup");
+    setDeliveryLocation("");
+    setAcceptedPaymentMethods([]);
+    setError("");
+  }
+
+  function openEditForm(listing: ProduceListing) {
+    setFormTarget(listing);
+    setCrop(listing.crop);
+    setQuantity(listing.quantity_kg);
+    setMediaUrl(listing.photo_url);
+    setMediaType(listing.media_type);
+    setDeliveryMethod(listing.delivery_method);
+    setDeliveryLocation(listing.delivery_location);
+    setAcceptedPaymentMethods(listing.accepted_payment_methods);
+    setError("");
+  }
 
   function togglePaymentMethod(channel: PaymentChannel) {
     setAcceptedPaymentMethods((prev) =>
@@ -100,32 +126,31 @@ export default function MarketplaceScreen() {
     }
   }
 
-  async function handleAddListing() {
+  async function handleSubmitListing() {
     if (!user) return;
     setError("");
     setIsSubmitting(true);
+    const payload = {
+      crop,
+      quantity_kg: parseFloat(quantity),
+      photo_url: mediaUrl || undefined,
+      media_type: mediaType || undefined,
+      delivery_method: deliveryMethod,
+      delivery_location: deliveryLocation || undefined,
+      accepted_payment_methods: acceptedPaymentMethods,
+    };
     try {
-      await apiClient.post("/marketplace/listings/", {
-        crop,
-        quantity_kg: parseFloat(quantity),
-        photo_url: mediaUrl || undefined,
-        media_type: mediaType || undefined,
-        listed_via: "app",
-        delivery_method: deliveryMethod,
-        delivery_location: deliveryLocation || undefined,
-        accepted_payment_methods: acceptedPaymentMethods,
-      });
-      setCrop("");
-      setQuantity("");
-      setMediaUrl("");
-      setMediaType("");
-      setDeliveryMethod("pickup");
-      setDeliveryLocation("");
-      setAcceptedPaymentMethods([]);
-      setModalVisible(false);
+      if (isEditing) {
+        await apiClient.patch(`/marketplace/listings/${formTarget.id}/`, payload);
+        toast.success("Listing updated.");
+      } else {
+        await apiClient.post("/marketplace/listings/", { ...payload, listed_via: "app" });
+        toast.success("Produce listed.");
+      }
+      setFormTarget(null);
       refetch();
     } catch {
-      setError("Could not list produce. Check the details and try again.");
+      setError(isEditing ? "Could not save changes. Check the details and try again." : "Could not list produce. Check the details and try again.");
     } finally {
       setIsSubmitting(false);
     }
@@ -201,6 +226,11 @@ export default function MarketplaceScreen() {
                 {item.ai_grade === "ungraded" ? "Grade it yourself" : "Edit grade"}
               </Text>
             </TouchableOpacity>
+            {item.status !== "sold" && (
+              <TouchableOpacity onPress={() => openEditForm(item)}>
+                <Text style={styles.gradeLink}>Edit listing</Text>
+              </TouchableOpacity>
+            )}
           </View>
         )}
         ListEmptyComponent={
@@ -212,14 +242,14 @@ export default function MarketplaceScreen() {
         }
       />
 
-      <TouchableOpacity style={styles.fab} onPress={() => setModalVisible(true)}>
+      <TouchableOpacity style={styles.fab} onPress={openCreateForm}>
         <Text style={styles.fabText}>+ List Produce</Text>
       </TouchableOpacity>
 
-      <Modal visible={modalVisible} transparent animationType="slide">
+      <Modal visible={formTarget !== null} transparent animationType="slide">
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>List Produce for Sale</Text>
+            <Text style={styles.modalTitle}>{isEditing ? "Edit Listing" : "List Produce for Sale"}</Text>
             <TextInput style={styles.input} placeholder="Crop (e.g. Maize)" value={crop} onChangeText={setCrop} />
             <TextInput
               style={styles.input}
@@ -298,16 +328,16 @@ export default function MarketplaceScreen() {
             {error ? <Text style={styles.error}>{error}</Text> : null}
             <TouchableOpacity
               style={styles.submitButton}
-              onPress={handleAddListing}
+              onPress={handleSubmitListing}
               disabled={isSubmitting || isUploading}
             >
               {isSubmitting ? (
                 <ActivityIndicator color="#fff" />
               ) : (
-                <Text style={styles.submitButtonText}>List Produce</Text>
+                <Text style={styles.submitButtonText}>{isEditing ? "Save Changes" : "List Produce"}</Text>
               )}
             </TouchableOpacity>
-            <TouchableOpacity onPress={() => setModalVisible(false)}>
+            <TouchableOpacity onPress={() => setFormTarget(null)}>
               <Text style={styles.cancelText}>Cancel</Text>
             </TouchableOpacity>
           </View>

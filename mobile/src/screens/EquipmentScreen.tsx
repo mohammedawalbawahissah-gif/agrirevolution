@@ -34,7 +34,9 @@ export default function EquipmentScreen() {
     [user?.id]
   );
 
-  const [selected, setSelected] = useState<Equipment | null>(null);
+  const [formMode, setFormMode] = useState<
+    { type: "create"; equipment: Equipment } | { type: "edit"; booking: EquipmentBooking } | null
+  >(null);
   const [acreage, setAcreage] = useState("");
   const [date, setDate] = useState("");
   const [deliveryMethod, setDeliveryMethod] = useState<"pickup" | "delivery">("pickup");
@@ -46,29 +48,51 @@ export default function EquipmentScreen() {
   const [payingId, setPayingId] = useState<number | null>(null);
   const [paymentMessage, setPaymentMessage] = useState<Record<number, string>>({});
 
-  async function handleBook() {
-    if (!selected || !user) return;
+  function openCreateForm(equipment: Equipment) {
+    setFormMode({ type: "create", equipment });
+    setAcreage("");
+    setDate("");
+    setDeliveryMethod("pickup");
+    setDeliveryLocation("");
+    setPaymentChannel("mtn_momo");
+    setError("");
+  }
+
+  function openEditForm(booking: EquipmentBooking) {
+    setFormMode({ type: "edit", booking });
+    setAcreage(booking.acreage);
+    setDate(booking.requested_date);
+    setDeliveryMethod(booking.delivery_method);
+    setDeliveryLocation(booking.delivery_location);
+    setPaymentChannel((booking.payment_channel as PaymentChannel) || "mtn_momo");
+    setError("");
+  }
+
+  async function handleSubmitBooking() {
+    if (!formMode || !user) return;
     setError("");
     setIsBooking(true);
+    const payload = {
+      requested_date: date,
+      acreage: parseFloat(acreage),
+      delivery_method: deliveryMethod,
+      delivery_location: deliveryLocation || undefined,
+      payment_channel: paymentChannel,
+    };
     try {
-      await apiClient.post("/equipment/bookings/", {
-        equipment: selected.id,
-        requested_date: date,
-        acreage: parseFloat(acreage),
-        requested_via: "app",
-        delivery_method: deliveryMethod,
-        delivery_location: deliveryLocation || undefined,
-        payment_channel: paymentChannel,
-      });
-      setSelected(null);
-      setAcreage("");
-      setDate("");
-      setDeliveryMethod("pickup");
-      setDeliveryLocation("");
-      setPaymentChannel("mtn_momo");
+      if (formMode.type === "edit") {
+        await apiClient.patch(`/equipment/bookings/${formMode.booking.id}/`, payload);
+      } else {
+        await apiClient.post("/equipment/bookings/", {
+          ...payload,
+          equipment: formMode.equipment.id,
+          requested_via: "app",
+        });
+      }
+      setFormMode(null);
       refetchBookings();
     } catch {
-      setError("Could not submit request. Check the date format (YYYY-MM-DD) and try again.");
+      setError("Could not save this request. Check the date format (YYYY-MM-DD) and try again.");
     } finally {
       setIsBooking(false);
     }
@@ -111,7 +135,7 @@ export default function EquipmentScreen() {
             <Text style={styles.cardName}>{item.name}</Text>
             <Text style={styles.cardCategory}>{item.category}</Text>
             <Text style={styles.cardRate}>GHS {item.rate_per_acre_ghs} / acre</Text>
-            <TouchableOpacity style={styles.bookButton} onPress={() => setSelected(item)}>
+            <TouchableOpacity style={styles.bookButton} onPress={() => openCreateForm(item)}>
               <Text style={styles.bookButtonText}>Request</Text>
             </TouchableOpacity>
           </View>
@@ -140,6 +164,11 @@ export default function EquipmentScreen() {
                   </View>
                   <View style={{ alignItems: "flex-end" }}>
                     <Text style={styles.bookingStatus}>{b.status.replace("_", " ")}</Text>
+                    {b.status === "requested" && (
+                      <TouchableOpacity onPress={() => openEditForm(b)}>
+                        <Text style={styles.payLink}>Edit</Text>
+                      </TouchableOpacity>
+                    )}
                     {(b.status === "confirmed" || b.status === "requested") && b.total_cost_ghs && (
                       <TouchableOpacity onPress={() => handlePay(b)} disabled={payingId === b.id}>
                         <Text style={styles.payLink}>
@@ -155,10 +184,12 @@ export default function EquipmentScreen() {
         }
       />
 
-      <Modal visible={!!selected} transparent animationType="slide">
+      <Modal visible={!!formMode} transparent animationType="slide">
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Request {selected?.name}</Text>
+            <Text style={styles.modalTitle}>
+              {formMode?.type === "edit" ? `Edit Request — ${formMode.booking.equipment_name ?? ""}` : `Request ${formMode?.type === "create" ? formMode.equipment.name : ""}`}
+            </Text>
             <TextInput
               style={styles.input}
               placeholder="Acreage (e.g. 2.5)"
@@ -207,10 +238,14 @@ export default function EquipmentScreen() {
               ))}
             </View>
             {error ? <Text style={styles.error}>{error}</Text> : null}
-            <TouchableOpacity style={styles.bookButton} onPress={handleBook} disabled={isBooking}>
-              {isBooking ? <ActivityIndicator color="#fff" /> : <Text style={styles.bookButtonText}>Submit Request</Text>}
+            <TouchableOpacity style={styles.bookButton} onPress={handleSubmitBooking} disabled={isBooking}>
+              {isBooking ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.bookButtonText}>{formMode?.type === "edit" ? "Save Changes" : "Submit Request"}</Text>
+              )}
             </TouchableOpacity>
-            <TouchableOpacity onPress={() => setSelected(null)}>
+            <TouchableOpacity onPress={() => setFormMode(null)}>
               <Text style={styles.cancelText}>Cancel</Text>
             </TouchableOpacity>
           </View>

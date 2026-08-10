@@ -14,8 +14,11 @@ import {
 import { useAuth } from "../../context/AuthContext";
 import { useFetch } from "../../hooks/useFetch";
 import { apiClient } from "../../api/client";
+import { useToast } from "../../context/ToastContext";
 import type { Paginated, PaymentChannel, ProduceListing, Order } from "../../types";
 import { PAYMENT_CHANNEL_LABELS } from "../../types";
+
+const PAYMENT_CHANNELS = Object.keys(PAYMENT_CHANNEL_LABELS) as PaymentChannel[];
 
 export default function BrowseProduceScreen() {
   const { user } = useAuth();
@@ -37,6 +40,46 @@ export default function BrowseProduceScreen() {
   const [busyId, setBusyId] = useState<number | null>(null);
   const [error, setError] = useState("");
   const [paymentMessage, setPaymentMessage] = useState<Record<number, string>>({});
+  const toast = useToast();
+
+  const [editingOrder, setEditingOrder] = useState<Order | null>(null);
+  const [editDeliveryMethod, setEditDeliveryMethod] = useState<"pickup" | "delivery">("pickup");
+  const [editDeliveryAddress, setEditDeliveryAddress] = useState("");
+  const [editPaymentMethod, setEditPaymentMethod] = useState<PaymentChannel | "">("");
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
+  const [editError, setEditError] = useState("");
+
+  function openEditOrder(order: Order) {
+    setEditingOrder(order);
+    setEditDeliveryMethod(order.delivery_method);
+    setEditDeliveryAddress(order.delivery_address);
+    setEditPaymentMethod(order.payment_method);
+    setEditError("");
+  }
+
+  async function handleSaveOrderEdit() {
+    if (!editingOrder) return;
+    setEditError("");
+    if (editDeliveryMethod === "delivery" && !editDeliveryAddress.trim()) {
+      setEditError("Delivery address is required for delivery orders.");
+      return;
+    }
+    setIsSavingEdit(true);
+    try {
+      await apiClient.patch(`/marketplace/orders/${editingOrder.id}/`, {
+        delivery_method: editDeliveryMethod,
+        delivery_address: editDeliveryMethod === "delivery" ? editDeliveryAddress : "",
+        payment_method: editPaymentMethod || undefined,
+      });
+      toast.success(`Order #${editingOrder.id} updated`);
+      setEditingOrder(null);
+      refetchOrders();
+    } catch {
+      setEditError("Couldn't save changes. Please try again.");
+    } finally {
+      setIsSavingEdit(false);
+    }
+  }
 
   function openOrderModal(listing: ProduceListing) {
     setError("");
@@ -186,6 +229,11 @@ export default function BrowseProduceScreen() {
                       <Text style={styles.cancelLink}>Cancel</Text>
                     </TouchableOpacity>
                   )}
+                  {o.status === "pending" && (
+                    <TouchableOpacity onPress={() => openEditOrder(o)} disabled={busyId === o.id}>
+                      <Text style={styles.payLink}>Edit</Text>
+                    </TouchableOpacity>
+                  )}
                 </View>
               </View>
             ))}
@@ -262,6 +310,61 @@ export default function BrowseProduceScreen() {
               )}
             </TouchableOpacity>
             <TouchableOpacity onPress={() => setOrderingListing(null)}>
+              <Text style={styles.cancelText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal visible={!!editingOrder} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Edit Order #{editingOrder?.id}</Text>
+
+            <Text style={styles.fieldLabel}>Delivery</Text>
+            <View style={styles.pillRow}>
+              {(["pickup", "delivery"] as const).map((opt) => (
+                <TouchableOpacity
+                  key={opt}
+                  style={[styles.pill, editDeliveryMethod === opt && styles.pillActive]}
+                  onPress={() => setEditDeliveryMethod(opt)}
+                >
+                  <Text style={[styles.pillText, editDeliveryMethod === opt && styles.pillTextActive]}>
+                    {opt === "pickup" ? "Pickup" : "Delivery"}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            {editDeliveryMethod === "delivery" && (
+              <TextInput
+                style={styles.input}
+                placeholder="Delivery address"
+                value={editDeliveryAddress}
+                onChangeText={setEditDeliveryAddress}
+              />
+            )}
+
+            <Text style={styles.fieldLabel}>Payment Method</Text>
+            <View style={styles.pillRow}>
+              {PAYMENT_CHANNELS.map((channel) => (
+                <TouchableOpacity
+                  key={channel}
+                  style={[styles.pill, editPaymentMethod === channel && styles.pillActive]}
+                  onPress={() => setEditPaymentMethod(channel)}
+                >
+                  <Text style={[styles.pillText, editPaymentMethod === channel && styles.pillTextActive]}>
+                    {PAYMENT_CHANNEL_LABELS[channel]}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            {editError ? <Text style={styles.error}>{editError}</Text> : null}
+            <TouchableOpacity style={styles.orderButton} onPress={handleSaveOrderEdit} disabled={isSavingEdit}>
+              {isSavingEdit ? <ActivityIndicator color="#fff" /> : <Text style={styles.orderButtonText}>Save Changes</Text>}
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => setEditingOrder(null)}>
               <Text style={styles.cancelText}>Cancel</Text>
             </TouchableOpacity>
           </View>

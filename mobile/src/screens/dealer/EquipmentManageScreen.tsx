@@ -41,6 +41,7 @@ export default function EquipmentManageScreen() {
   const toast = useToast();
 
   const [modalVisible, setModalVisible] = useState(false);
+  const [editingItem, setEditingItem] = useState<Equipment | null>(null);
   const [form, setForm] = useState({
     name: "",
     category: "ploughing" as (typeof CATEGORIES)[number],
@@ -54,7 +55,29 @@ export default function EquipmentManageScreen() {
   const [isUploading, setIsUploading] = useState(false);
   const [openBookingId, setOpenBookingId] = useState<number | null>(null);
 
+  const isEditing = editingItem !== null;
   const openBooking = bookings?.results.find((b) => b.id === openBookingId) ?? null;
+
+  function openCreateModal() {
+    setEditingItem(null);
+    setForm({ name: "", category: "ploughing", rate_per_acre_ghs: "", description: "" });
+    setPhotoUrl("");
+    setError("");
+    setModalVisible(true);
+  }
+
+  function openEditModal(item: Equipment) {
+    setEditingItem(item);
+    setForm({
+      name: item.name,
+      category: item.category,
+      rate_per_acre_ghs: item.rate_per_acre_ghs,
+      description: item.description,
+    });
+    setPhotoUrl(item.photo_url);
+    setError("");
+    setModalVisible(true);
+  }
 
   async function handlePickPhoto() {
     setError("");
@@ -87,23 +110,27 @@ export default function EquipmentManageScreen() {
     }
   }
 
-  async function handleAddEquipment() {
+  async function handleSaveEquipment() {
     if (!user) return;
     setError("");
     setIsSubmitting(true);
     try {
-      await apiClient.post("/equipment/equipment/", {
+      const payload = {
         ...form,
         rate_per_acre_ghs: parseFloat(form.rate_per_acre_ghs),
         photo_url: photoUrl || undefined,
-      });
-      toast.success(`${form.name} added`);
-      setForm({ name: "", category: "ploughing", rate_per_acre_ghs: "", description: "" });
-      setPhotoUrl("");
+      };
+      if (isEditing && editingItem) {
+        await apiClient.patch(`/equipment/equipment/${editingItem.id}/`, payload);
+        toast.success(`${form.name} updated`);
+      } else {
+        await apiClient.post("/equipment/equipment/", payload);
+        toast.success(`${form.name} added`);
+      }
       setModalVisible(false);
       refetch();
     } catch {
-      setError("Could not add equipment. Check the form and try again.");
+      setError(isEditing ? "Could not save changes. Check the form and try again." : "Could not add equipment. Check the form and try again.");
     } finally {
       setIsSubmitting(false);
     }
@@ -220,6 +247,9 @@ export default function EquipmentManageScreen() {
                 </View>
               </View>
               <View style={styles.cardActions}>
+                <TouchableOpacity onPress={() => openEditModal(item)} disabled={busyId === item.id}>
+                  <Text style={styles.actionLink}>Edit</Text>
+                </TouchableOpacity>
                 <TouchableOpacity onPress={() => toggleAvailable(item)} disabled={busyId === item.id}>
                   <Text style={styles.actionLink}>{item.is_available ? "Pause" : "Activate"}</Text>
                 </TouchableOpacity>
@@ -268,14 +298,14 @@ export default function EquipmentManageScreen() {
         actions={openBooking ? bookingActions(openBooking) : []}
       />
 
-      <TouchableOpacity style={styles.fab} onPress={() => setModalVisible(true)}>
+      <TouchableOpacity style={styles.fab} onPress={openCreateModal}>
         <Text style={styles.fabText}>+ List Equipment</Text>
       </TouchableOpacity>
 
       <Modal visible={modalVisible} transparent animationType="slide">
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>List New Equipment</Text>
+            <Text style={styles.modalTitle}>{isEditing ? "Edit Equipment" : "List New Equipment"}</Text>
             <TextInput
               style={styles.input}
               placeholder="Equipment name"
@@ -331,7 +361,11 @@ export default function EquipmentManageScreen() {
               </TouchableOpacity>
             )}
             {error ? <Text style={styles.error}>{error}</Text> : null}
-            <Button title="Add Equipment" onPress={handleAddEquipment} isLoading={isSubmitting || isUploading} />
+            <Button
+              title={isEditing ? "Save Changes" : "Add Equipment"}
+              onPress={handleSaveEquipment}
+              isLoading={isSubmitting || isUploading}
+            />
             <TouchableOpacity onPress={() => setModalVisible(false)}>
               <Text style={styles.cancelText}>Cancel</Text>
             </TouchableOpacity>
