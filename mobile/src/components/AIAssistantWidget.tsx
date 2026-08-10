@@ -13,12 +13,33 @@ import {
   Image,
 } from "react-native";
 import * as Speech from "expo-speech";
-import {
-  ExpoSpeechRecognitionModule,
-  useSpeechRecognitionEvent,
-} from "expo-speech-recognition";
 import { useAuth } from "../context/AuthContext";
 import { apiClient } from "../api/client";
+
+// expo-speech-recognition is a native module — its native code isn't part
+// of the generic Expo Go binary, only a custom dev-client build. A plain
+// top-level `import` throws the instant this file loads, which crashes the
+// WHOLE app on startup under Expo Go (not just voice input). require()
+// wrapped in try/catch defers that lookup to runtime and safely catches the
+// failure — voice input then just quietly stays unavailable (same UX as
+// before), while the rest of the app, including this widget's text chat,
+// keeps working normally.
+let ExpoSpeechRecognitionModule: {
+  isRecognitionAvailable: () => boolean;
+  start: (options: { lang: string; interimResults: boolean; continuous: boolean }) => void;
+  stop: () => void;
+  requestPermissionsAsync: () => Promise<{ granted: boolean }>;
+} | null = null;
+let useSpeechRecognitionEvent: (type: string, handler: (event: any) => void) => void = () => {};
+try {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const speechRecognition = require("expo-speech-recognition");
+  ExpoSpeechRecognitionModule = speechRecognition.ExpoSpeechRecognitionModule;
+  useSpeechRecognitionEvent = speechRecognition.useSpeechRecognitionEvent;
+} catch {
+  // Native module isn't present in this binary — recognitionAvailable
+  // below resolves to false and the mic button hides itself, as designed.
+}
 
 interface ChatMessage {
   role: "user" | "assistant";
@@ -84,11 +105,7 @@ export default function AIAssistantWidget() {
   const scrollRef = useRef<ScrollView>(null);
 
   useEffect(() => {
-    try {
-      setRecognitionAvailable(ExpoSpeechRecognitionModule.isRecognitionAvailable());
-    } catch {
-      setRecognitionAvailable(false);
-    }
+    setRecognitionAvailable(ExpoSpeechRecognitionModule?.isRecognitionAvailable() ?? false);
   }, []);
 
   useSpeechRecognitionEvent("result", (event) => {
@@ -139,7 +156,7 @@ export default function AIAssistantWidget() {
   }
 
   async function toggleListening() {
-    if (!recognitionAvailable) return;
+    if (!recognitionAvailable || !ExpoSpeechRecognitionModule) return;
     if (isListening) {
       ExpoSpeechRecognitionModule.stop();
       return;
