@@ -10,6 +10,7 @@ const CATEGORY_LABELS: Record<AppNotification["category"], string> = {
   listing_update: "Listing",
   payment_update: "Payment",
   crop_health_alert: "Crop Health",
+  input_order_update: "Input Order",
 };
 
 function timeAgo(isoDate: string): string {

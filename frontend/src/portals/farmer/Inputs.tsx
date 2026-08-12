@@ -15,7 +15,7 @@ const PAYMENT_CHANNELS = Object.keys(PAYMENT_CHANNEL_LABELS) as PaymentChannel[]
 
 export default function FarmerInputs() {
   const { user } = useAuth();
-  const { data: products, isLoading: productsLoading, refetch: refetchProducts } = useFetch<Paginated<InputProduct>>(
+  const { data: products, isLoading: isProductsLoading, refetch: refetchProducts } = useFetch<Paginated<InputProduct>>(
     "/inputs/products/?active_only=true"
   );
   const { data: orders, refetch: refetchOrders } = useFetch<Paginated<InputOrder>>(
@@ -139,12 +139,14 @@ export default function FarmerInputs() {
               </button>
             </div>
           ))
-        ) : (
+        ) : !isProductsLoading ? (
           <EmptyState
             icon={Package}
             title={search ? "No products match your search" : "No inputs available right now"}
             description={search ? undefined : "Check back once an input dealer lists something."}
           />
+        ) : (
+          <p className="px-5 py-8 text-center text-sm text-gray-400">Loading…</p>
         )}
       </section>
 

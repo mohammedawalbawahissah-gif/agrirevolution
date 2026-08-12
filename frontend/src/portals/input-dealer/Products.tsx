@@ -303,12 +303,14 @@ export default function InputDealerProducts() {
                 </div>
               </div>
             ))
-          ) : (
+          ) : !isLoading ? (
             <EmptyState
               icon={Package}
               title={search ? "No products match your search" : "No products listed yet"}
               description={search ? undefined : "Add your first product above."}
             />
+          ) : (
+            <p className="px-5 py-8 text-center text-sm text-gray-400">Loading…</p>
           )}
         </div>
       </section>
