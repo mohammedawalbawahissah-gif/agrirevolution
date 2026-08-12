@@ -115,6 +115,7 @@ export default function Register() {
             >
               <option value="farmer">Farmer</option>
               <option value="dealer">Equipment Dealer</option>
+              <option value="input_dealer">Input Dealer (seeds, fertilizer, agrochemicals)</option>
               <option value="buyer">Buyer</option>
             </select>
           </div>

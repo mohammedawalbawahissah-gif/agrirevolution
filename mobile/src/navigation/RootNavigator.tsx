@@ -11,6 +11,9 @@ import MarketplaceScreen from "../screens/MarketplaceScreen";
 import OrdersScreen from "../screens/farmer/OrdersScreen";
 import AccountScreen from "../screens/AccountScreen";
 import EquipmentManageScreen from "../screens/dealer/EquipmentManageScreen";
+import InputProductsScreen from "../screens/input-dealer/ProductsScreen";
+import InputOrdersScreen from "../screens/input-dealer/OrdersScreen";
+import FarmerInputsScreen from "../screens/farmer/InputsScreen";
 import BrowseProduceScreen from "../screens/buyer/BrowseProduceScreen";
 import AdminDashboardScreen from "../screens/admin/AdminDashboardScreen";
 import AdminCropHealthScreen from "../screens/admin/AdminCropHealthScreen";
@@ -48,6 +51,7 @@ function FarmerTabs() {
       <Tab.Screen name="AI Assistant" component={AIAssistantScreen} />
       <Tab.Screen name="Equipment" component={EquipmentScreen} />
       <Tab.Screen name="Marketplace" component={MarketplaceScreen} />
+      <Tab.Screen name="Inputs" component={FarmerInputsScreen} />
       <Tab.Screen name="Orders" component={OrdersScreen} />
       <Tab.Screen name="Account" component={AccountScreen} />
     </Tab.Navigator>
@@ -58,6 +62,16 @@ function DealerTabs() {
   return (
     <Tab.Navigator screenOptions={SHARED_HEADER_OPTIONS}>
       <Tab.Screen name="Equipment" component={EquipmentManageScreen} />
+      <Tab.Screen name="Account" component={AccountScreen} />
+    </Tab.Navigator>
+  );
+}
+
+function InputDealerTabs() {
+  return (
+    <Tab.Navigator screenOptions={SHARED_HEADER_OPTIONS}>
+      <Tab.Screen name="Products" component={InputProductsScreen} />
+      <Tab.Screen name="Orders" component={InputOrdersScreen} />
       <Tab.Screen name="Account" component={AccountScreen} />
     </Tab.Navigator>
   );
@@ -87,6 +101,8 @@ function RoleTabs() {
   switch (user?.role) {
     case "dealer":
       return <DealerTabs />;
+    case "input_dealer":
+      return <InputDealerTabs />;
     case "buyer":
       return <BuyerTabs />;
     case "admin":

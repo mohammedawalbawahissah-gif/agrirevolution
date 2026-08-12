@@ -120,7 +120,7 @@ export default function PortalShell({ navItems, roleLabel }: PortalShellProps) {
       </aside>
 
       <main className="flex-1 min-w-0 overflow-y-auto flex flex-col">
-        <header className="h-14 border-b border-black/10 bg-sidebar flex items-center justify-between px-4 md:px-6 shrink-0">
+        <header className="h-14 border-b border-black/10 bg-sidebar flex items-center px-4 md:px-6 shrink-0">
           <button
             onClick={() => setIsSidebarOpen(true)}
             className="md:hidden text-sidebar-text hover:text-white p-1.5 -ml-1.5"
@@ -128,8 +128,9 @@ export default function PortalShell({ navItems, roleLabel }: PortalShellProps) {
           >
             <Menu size={22} />
           </button>
-          <span className="md:hidden flex-1" />
-          <NotificationBell />
+          <div className="ml-auto">
+            <NotificationBell />
+          </div>
         </header>
         <div key={location.pathname} className="flex-1 overflow-y-auto">
           <Outlet />

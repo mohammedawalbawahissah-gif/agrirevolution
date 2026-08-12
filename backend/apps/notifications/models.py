@@ -15,6 +15,7 @@ class Notification(models.Model):
         LISTING_UPDATE = "listing_update", "Produce Listing Update"
         PAYMENT_UPDATE = "payment_update", "Payment Update"
         CROP_HEALTH_ALERT = "crop_health_alert", "Crop Health Alert"
+        INPUT_ORDER_UPDATE = "input_order_update", "Farm Input Order Update"
 
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="notifications")
     channel = models.CharField(max_length=10, choices=Channel.choices)

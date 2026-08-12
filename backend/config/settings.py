@@ -49,6 +49,7 @@ INSTALLED_APPS = [
     "apps.notifications",
     "apps.assistant",
     "apps.cropcare",
+    "apps.inputs",
 ]
 
 MIDDLEWARE = [

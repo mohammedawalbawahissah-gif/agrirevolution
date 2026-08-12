@@ -7,6 +7,7 @@ from .views import (
     BuyerProfileViewSet,
     DealerProfileViewSet,
     FarmerProfileViewSet,
+    InputDealerProfileViewSet,
     MeView,
     RegisterView,
     UserViewSet,
@@ -16,6 +17,7 @@ router = DefaultRouter()
 router.register("users", UserViewSet)
 router.register("farmer-profiles", FarmerProfileViewSet)
 router.register("dealer-profiles", DealerProfileViewSet)
+router.register("input-dealer-profiles", InputDealerProfileViewSet)
 router.register("buyer-profiles", BuyerProfileViewSet)
 
 urlpatterns = [

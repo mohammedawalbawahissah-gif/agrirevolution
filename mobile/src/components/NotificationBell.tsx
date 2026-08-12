@@ -20,6 +20,7 @@ const CATEGORY_LABELS: Record<AppNotification["category"], string> = {
   listing_update: "Listing",
   payment_update: "Payment",
   crop_health_alert: "Crop Health",
+  input_order_update: "Farm Input Order",
 };
 
 // Maps a web action_url (or category, as a fallback) to the tab screen name
@@ -28,6 +29,8 @@ const CATEGORY_LABELS: Record<AppNotification["category"], string> = {
 // so several web destinations fall back to "Dashboard" on mobile.
 function tabForNotification(actionUrl: string, category: AppNotification["category"], role: UserRole | undefined): string {
   if (actionUrl.includes("/ai-assistant")) return "AI Assistant";
+  if (actionUrl.includes("/input-dealer/orders")) return "Orders";
+  if (actionUrl.includes("/farmer/inputs")) return "Inputs";
   if (actionUrl.includes("/orders")) return role === "farmer" ? "Orders" : "Marketplace";
   if (actionUrl.includes("/marketplace") || actionUrl.includes("/listings")) return "Marketplace";
   if (actionUrl.includes("/equipment") || actionUrl.includes("/bookings")) return "Equipment";
@@ -44,6 +47,8 @@ function tabForNotification(actionUrl: string, category: AppNotification["catego
       return "Equipment";
     case "listing_update":
       return role === "farmer" ? "Orders" : "Marketplace";
+    case "input_order_update":
+      return role === "farmer" ? "Inputs" : "Orders";
     case "payment_update":
     default:
       return role === "admin" ? "Dashboard" : "Marketplace";

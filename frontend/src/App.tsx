@@ -12,6 +12,8 @@ import AdminEquipment from "./portals/admin/Equipment";
 import AdminBookings from "./portals/admin/Bookings";
 import AdminListings from "./portals/admin/Listings";
 import AdminOrders from "./portals/admin/Orders";
+import AdminInputProducts from "./portals/admin/InputProducts";
+import AdminInputOrders from "./portals/admin/InputOrders";
 import AdminCropHealth from "./portals/admin/CropHealth";
 import AdminTransactions from "./portals/admin/Transactions";
 import AdminAccount from "./portals/admin/Account";
@@ -21,6 +23,7 @@ import FarmerOverview from "./portals/farmer/Overview";
 import AIAssistant from "./portals/farmer/AIAssistant";
 import EquipmentTab from "./portals/farmer/EquipmentTab";
 import MarketplaceTab from "./portals/farmer/MarketplaceTab";
+import FarmerInputs from "./portals/farmer/Inputs";
 import FarmerOrders from "./portals/farmer/Orders";
 import FarmerAccountTab from "./portals/farmer/AccountTab";
 
@@ -30,6 +33,12 @@ import DealerEquipment from "./portals/dealer/Equipment";
 import DealerBookings from "./portals/dealer/Bookings";
 import DealerAccount from "./portals/dealer/Account";
 
+import InputDealerLayout from "./portals/input-dealer/InputDealerLayout";
+import InputDealerOverview from "./portals/input-dealer/Overview";
+import InputDealerProducts from "./portals/input-dealer/Products";
+import InputDealerOrders from "./portals/input-dealer/Orders";
+import InputDealerAccount from "./portals/input-dealer/Account";
+
 import BuyerLayout from "./portals/buyer/BuyerLayout";
 import BuyerOverview from "./portals/buyer/Overview";
 import BuyerMarketplace from "./portals/buyer/Marketplace";
@@ -38,11 +47,15 @@ import BuyerAccount from "./portals/buyer/Account";
 
 import ProtectedRoute from "./routes/ProtectedRoute";
 
+// Role strings are single words except input_dealer, which uses a
+// hyphenated URL segment for readability — everything else maps 1:1.
+const ROLE_PATHS: Record<string, string> = { input_dealer: "input-dealer" };
+
 function RootRedirect() {
   const { user, isLoading } = useAuth();
   if (isLoading) return null;
   if (!user) return <Navigate to="/login" replace />;
-  return <Navigate to={`/${user.role}`} replace />;
+  return <Navigate to={`/${ROLE_PATHS[user.role] ?? user.role}`} replace />;
 }
 
 function AppRoutes() {
@@ -65,6 +78,8 @@ function AppRoutes() {
         <Route path="bookings" element={<AdminBookings />} />
         <Route path="listings" element={<AdminListings />} />
         <Route path="orders" element={<AdminOrders />} />
+        <Route path="input-products" element={<AdminInputProducts />} />
+        <Route path="input-orders" element={<AdminInputOrders />} />
         <Route path="crop-health" element={<AdminCropHealth />} />
         <Route path="transactions" element={<AdminTransactions />} />
         <Route path="account" element={<AdminAccount />} />
@@ -82,6 +97,7 @@ function AppRoutes() {
         <Route path="ai-assistant" element={<AIAssistant />} />
         <Route path="equipment" element={<EquipmentTab />} />
         <Route path="marketplace" element={<MarketplaceTab />} />
+        <Route path="inputs" element={<FarmerInputs />} />
         <Route path="orders" element={<FarmerOrders />} />
         <Route path="account" element={<FarmerAccountTab />} />
       </Route>
@@ -98,6 +114,20 @@ function AppRoutes() {
         <Route path="equipment" element={<DealerEquipment />} />
         <Route path="bookings" element={<DealerBookings />} />
         <Route path="account" element={<DealerAccount />} />
+      </Route>
+
+      <Route
+        path="/input-dealer"
+        element={
+          <ProtectedRoute allowedRoles={["input_dealer"]}>
+            <InputDealerLayout />
+          </ProtectedRoute>
+        }
+      >
+        <Route index element={<InputDealerOverview />} />
+        <Route path="products" element={<InputDealerProducts />} />
+        <Route path="orders" element={<InputDealerOrders />} />
+        <Route path="account" element={<InputDealerAccount />} />
       </Route>
 
       <Route

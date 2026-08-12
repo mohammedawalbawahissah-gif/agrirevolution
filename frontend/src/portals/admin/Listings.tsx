@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Plus, Sprout } from "lucide-react";
 import { useFetch } from "../../hooks/useFetch";
 import { apiClient } from "../../api/client";
 import { useToast } from "../../context/ToastContext";
 import StatusBadge from "../../components/ui/StatusBadge";
 import EmptyState from "../../components/ui/EmptyState";
+import SearchInput from "../../components/ui/SearchInput";
 import type { Paginated, PaymentChannel, ProduceListing, User } from "../../types";
 import { PAYMENT_CHANNEL_LABELS } from "../../types";
 
@@ -23,6 +24,16 @@ export default function AdminListings() {
   );
   const { data: farmers } = useFetch<Paginated<User>>("/accounts/users/?role=farmer");
   const [busyId, setBusyId] = useState<number | null>(null);
+  const [search, setSearch] = useState("");
+
+  const filteredListings = useMemo(() => {
+    if (!listings?.results) return [];
+    const q = search.trim().toLowerCase();
+    if (!q) return listings.results;
+    return listings.results.filter(
+      (l) => l.crop.toLowerCase().includes(q) || String(l.farmer).includes(q)
+    );
+  }, [listings, search]);
   const toast = useToast();
 
   const [formOpen, setFormOpen] = useState(false);
@@ -215,8 +226,12 @@ export default function AdminListings() {
         </div>
       )}
 
+      <div className="mb-3">
+        <SearchInput value={search} onChange={setSearch} placeholder="Search by crop or farmer…" className="max-w-xs" />
+      </div>
+
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-        {listings?.results.length ? (
+        {filteredListings.length ? (
           <div className="overflow-x-auto">
 <table className="w-full text-sm">
             <thead className="bg-gray-50 text-gray-500 text-xs uppercase">
@@ -229,7 +244,7 @@ export default function AdminListings() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {listings.results.map((l) => (
+              {filteredListings.map((l) => (
                 <tr key={l.id} className={busyId === l.id ? "opacity-50" : ""}>
                   <td className="px-5 py-3 font-medium text-gray-900">
                     {l.quantity_kg}kg {l.crop}
@@ -277,7 +292,11 @@ export default function AdminListings() {
           </table>
 </div>
         ) : !isLoading ? (
-          <EmptyState icon={Sprout} title="No listings yet" description="Produce listings will appear here." />
+          <EmptyState
+            icon={Sprout}
+            title={search ? "No listings match your search" : "No listings yet"}
+            description={search ? undefined : "Produce listings will appear here."}
+          />
         ) : (
           <p className="px-5 py-8 text-center text-sm text-gray-400">Loading…</p>
         )}

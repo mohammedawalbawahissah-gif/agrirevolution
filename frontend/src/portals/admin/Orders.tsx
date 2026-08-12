@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { ClipboardList } from "lucide-react";
 import { useFetch } from "../../hooks/useFetch";
 import { apiClient } from "../../api/client";
 import { useToast } from "../../context/ToastContext";
 import StatusBadge from "../../components/ui/StatusBadge";
 import EmptyState from "../../components/ui/EmptyState";
+import SearchInput from "../../components/ui/SearchInput";
 import DetailModal, { type DetailAction } from "../../components/ui/DetailModal";
 import type { Paginated, Order } from "../../types";
 
@@ -13,6 +14,19 @@ const STATUSES: Order["status"][] = ["pending", "accepted", "paid", "delivered",
 export default function AdminOrders() {
   const { data: orders, isLoading, refetch } = useFetch<Paginated<Order>>("/marketplace/orders/");
   const [busyId, setBusyId] = useState<number | null>(null);
+  const [search, setSearch] = useState("");
+
+  const filteredOrders = useMemo(() => {
+    if (!orders?.results) return [];
+    const q = search.trim().toLowerCase();
+    if (!q) return orders.results;
+    return orders.results.filter(
+      (o) =>
+        (o.listing_crop ?? "").toLowerCase().includes(q) ||
+        (o.buyer_name ?? "").toLowerCase().includes(q) ||
+        (o.farmer_name ?? "").toLowerCase().includes(q)
+    );
+  }, [orders, search]);
   const [openOrderId, setOpenOrderId] = useState<number | null>(null);
   const toast = useToast();
 
@@ -48,8 +62,12 @@ export default function AdminOrders() {
         <p className="text-page-subtitle">All produce orders across every buyer</p>
       </div>
 
+      <div className="mb-3">
+        <SearchInput value={search} onChange={setSearch} placeholder="Search orders…" className="max-w-xs" />
+      </div>
+
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-        {orders?.results.length ? (
+        {filteredOrders.length ? (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-gray-50 text-gray-500 text-xs uppercase">
@@ -62,7 +80,7 @@ export default function AdminOrders() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {orders.results.map((o) => (
+                {filteredOrders.map((o) => (
                   <tr
                     key={o.id}
                     onClick={() => setOpenOrderId(o.id)}
@@ -81,7 +99,11 @@ export default function AdminOrders() {
             </table>
           </div>
         ) : !isLoading ? (
-          <EmptyState icon={ClipboardList} title="No orders yet" description="Buyer orders will appear here." />
+          <EmptyState
+            icon={ClipboardList}
+            title={search ? "No orders match your search" : "No orders yet"}
+            description={search ? undefined : "Buyer orders will appear here."}
+          />
         ) : (
           <p className="px-5 py-8 text-center text-sm text-gray-400">Loading…</p>
         )}

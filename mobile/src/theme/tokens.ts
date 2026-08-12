@@ -51,6 +51,7 @@ export const statusTone: Record<string, Tone> = {
   delivered: "success",
   sold: "success",
   paid: "success",
+  fulfilled: "success",
   success: "success",
 
   pending: "warning",

@@ -6,16 +6,18 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.equipment.models import Equipment, EquipmentBooking
+from apps.inputs.models import InputOrder, InputProduct
 from apps.marketplace.models import Order, ProduceListing
 from apps.payments.models import Transaction
 
-from .models import BuyerProfile, DealerProfile, FarmerProfile, User
+from .models import BuyerProfile, DealerProfile, FarmerProfile, InputDealerProfile, User
 from .permissions import IsAdminRole, IsOwnerOrAdmin
 from .serializers import (
     AdminUserSerializer,
     BuyerProfileSerializer,
     DealerProfileSerializer,
     FarmerProfileSerializer,
+    InputDealerProfileSerializer,
     RegisterSerializer,
     UserSerializer,
 )
@@ -115,6 +117,12 @@ class DealerProfileViewSet(BaseProfileViewSet):
     profile_model = DealerProfile
 
 
+class InputDealerProfileViewSet(BaseProfileViewSet):
+    queryset = InputDealerProfile.objects.select_related("user").all()
+    serializer_class = InputDealerProfileSerializer
+    profile_model = InputDealerProfile
+
+
 class BuyerProfileViewSet(BaseProfileViewSet):
     queryset = BuyerProfile.objects.select_related("user").all()
     serializer_class = BuyerProfileSerializer
@@ -143,6 +151,9 @@ class AdminStatsView(APIView):
         orders_by_status = dict(
             Order.objects.values_list("status").annotate(count=Count("id")).order_by()
         )
+        input_orders_by_status = dict(
+            InputOrder.objects.values_list("status").annotate(count=Count("id")).order_by()
+        )
         listings_by_grade = dict(
             ProduceListing.objects.values_list("ai_grade").annotate(count=Count("id")).order_by()
         )
@@ -155,6 +166,7 @@ class AdminStatsView(APIView):
                 "users": {
                     "farmer": users_by_role.get("farmer", 0),
                     "dealer": users_by_role.get("dealer", 0),
+                    "input_dealer": users_by_role.get("input_dealer", 0),
                     "buyer": users_by_role.get("buyer", 0),
                     "admin": users_by_role.get("admin", 0),
                     "total": sum(users_by_role.values()),
@@ -175,6 +187,14 @@ class AdminStatsView(APIView):
                 "orders": {
                     "total": Order.objects.count(),
                     "by_status": orders_by_status,
+                },
+                "input_products": {
+                    "total": InputProduct.objects.count(),
+                    "active": InputProduct.objects.filter(is_active=True).count(),
+                },
+                "input_orders": {
+                    "total": InputOrder.objects.count(),
+                    "by_status": input_orders_by_status,
                 },
                 "transactions": {
                     "total": Transaction.objects.count(),

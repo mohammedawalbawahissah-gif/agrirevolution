@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Plus, Tractor } from "lucide-react";
 import { useFetch } from "../../hooks/useFetch";
 import { apiClient } from "../../api/client";
@@ -6,6 +6,7 @@ import { useToast } from "../../context/ToastContext";
 import { useConfirm } from "../../context/ConfirmContext";
 import StatusBadge from "../../components/ui/StatusBadge";
 import EmptyState from "../../components/ui/EmptyState";
+import SearchInput from "../../components/ui/SearchInput";
 import DetailModal, { type DetailAction } from "../../components/ui/DetailModal";
 import type { Paginated, Equipment, User } from "../../types";
 
@@ -15,6 +16,16 @@ export default function AdminEquipment() {
   const { data: equipment, isLoading, refetch } = useFetch<Paginated<Equipment>>("/equipment/equipment/");
   const { data: dealers } = useFetch<Paginated<User>>("/accounts/users/?role=dealer");
   const [busyId, setBusyId] = useState<number | null>(null);
+  const [search, setSearch] = useState("");
+
+  const filteredEquipment = useMemo(() => {
+    if (!equipment?.results) return [];
+    const q = search.trim().toLowerCase();
+    if (!q) return equipment.results;
+    return equipment.results.filter(
+      (e) => e.name.toLowerCase().includes(q) || e.category.toLowerCase().includes(q)
+    );
+  }, [equipment, search]);
   const [openItemId, setOpenItemId] = useState<number | null>(null);
   const toast = useToast();
   const confirm = useConfirm();
@@ -120,6 +131,10 @@ export default function AdminEquipment() {
         </button>
       </div>
 
+      <div className="mb-3">
+        <SearchInput value={search} onChange={setSearch} placeholder="Search equipment…" className="max-w-xs" />
+      </div>
+
       {formOpen && (
         <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-5 mb-6">
           <h3 className="font-semibold mb-3">List Equipment on Behalf of a Dealer</h3>
@@ -193,7 +208,7 @@ export default function AdminEquipment() {
       )}
 
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-        {equipment?.results.length ? (
+        {filteredEquipment.length ? (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-gray-50 text-gray-500 text-xs uppercase">
@@ -206,7 +221,7 @@ export default function AdminEquipment() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {equipment.results.map((item) => (
+                {filteredEquipment.map((item) => (
                   <tr
                     key={item.id}
                     onClick={() => setOpenItemId(item.id)}
@@ -228,7 +243,11 @@ export default function AdminEquipment() {
             </table>
           </div>
         ) : !isLoading ? (
-          <EmptyState icon={Tractor} title="No equipment listed yet" description="Dealer listings will appear here." />
+          <EmptyState
+            icon={Tractor}
+            title={search ? "No equipment matches your search" : "No equipment listed yet"}
+            description={search ? undefined : "Dealer listings will appear here."}
+          />
         ) : (
           <p className="px-5 py-8 text-center text-sm text-gray-400">Loading…</p>
         )}

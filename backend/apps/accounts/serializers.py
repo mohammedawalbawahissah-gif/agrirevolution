@@ -1,7 +1,7 @@
 from django.contrib.auth.password_validation import validate_password
 from rest_framework import serializers
 
-from .models import BuyerProfile, DealerProfile, FarmerProfile, User
+from .models import BuyerProfile, DealerProfile, FarmerProfile, InputDealerProfile, User
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -47,6 +47,14 @@ class DealerProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = DealerProfile
         fields = ["id", "user", "business_name", "service_radius_km", "is_active"]
+
+
+class InputDealerProfileSerializer(serializers.ModelSerializer):
+    user = UserSerializer(read_only=True)
+
+    class Meta:
+        model = InputDealerProfile
+        fields = ["id", "user", "business_name", "specialization", "is_active"]
 
 
 class BuyerProfileSerializer(serializers.ModelSerializer):

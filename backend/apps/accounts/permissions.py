@@ -35,6 +35,12 @@ class IsDealerRole(BasePermission):
         return bool(user and user.is_authenticated and user.role == "dealer")
 
 
+class IsInputDealerRole(BasePermission):
+    def has_permission(self, request, view):
+        user = request.user
+        return bool(user and user.is_authenticated and user.role == "input_dealer")
+
+
 class IsFarmerRole(BasePermission):
     def has_permission(self, request, view):
         user = request.user

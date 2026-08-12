@@ -9,6 +9,7 @@ import { colors, radius } from "../../theme/tokens";
 const ROLES: { value: UserRole; label: string }[] = [
   { value: "farmer", label: "Farmer" },
   { value: "dealer", label: "Equipment Dealer" },
+  { value: "input_dealer", label: "Input Dealer" },
   { value: "buyer", label: "Buyer" },
 ];
 
@@ -132,7 +133,7 @@ const styles = StyleSheet.create({
   row: { flexDirection: "row", gap: 8 },
   halfInput: { flex: 1 },
   label: { fontSize: 13, fontWeight: "600", color: "#374151", marginBottom: 8 },
-  roleRow: { flexDirection: "row", gap: 8, marginBottom: 16 },
+  roleRow: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 16 },
   roleChip: {
     flex: 1,
     borderWidth: 1,

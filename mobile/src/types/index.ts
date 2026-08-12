@@ -1,4 +1,4 @@
-export type UserRole = "farmer" | "dealer" | "buyer" | "admin";
+export type UserRole = "farmer" | "dealer" | "input_dealer" | "buyer" | "admin";
 
 export interface Paginated<T> {
   count: number;
@@ -154,7 +154,7 @@ export interface AppNotification {
   id: number;
   user: number;
   channel: "sms" | "push" | "voice";
-  category: "weather_alert" | "booking_update" | "listing_update" | "payment_update" | "crop_health_alert";
+  category: "weather_alert" | "booking_update" | "listing_update" | "payment_update" | "crop_health_alert" | "input_order_update";
   message: string;
   action_url: string;
   is_sent: boolean;
@@ -177,5 +177,44 @@ export interface DiseaseReport {
   source: "ai" | "manual";
   needs_admin_attention: boolean;
   admin_notes?: string;
+  created_at: string;
+}
+
+export interface InputProduct {
+  id: number;
+  dealer: number;
+  dealer_name?: string;
+  name: string;
+  category: "seeds" | "fertilizer" | "agrochemical" | "tools" | "other";
+  unit: string;
+  price_ghs: string;
+  stock_quantity: number;
+  is_active: boolean;
+  description: string;
+  photo_url: string;
+  created_at: string;
+}
+
+export const INPUT_CATEGORY_LABELS: Record<InputProduct["category"], string> = {
+  seeds: "Seeds",
+  fertilizer: "Fertilizer",
+  agrochemical: "Agrochemical",
+  tools: "Tools & Supplies",
+  other: "Other",
+};
+
+export interface InputOrder {
+  id: number;
+  farmer: number;
+  farmer_name?: string;
+  product: number;
+  product_name?: string;
+  dealer_name?: string;
+  quantity: number;
+  total_price_ghs: string | null;
+  status: "pending" | "confirmed" | "fulfilled" | "cancelled";
+  delivery_method: "pickup" | "delivery";
+  delivery_location: string;
+  payment_channel: PaymentChannel | "";
   created_at: string;
 }

@@ -11,6 +11,7 @@ class User(AbstractUser):
     class Role(models.TextChoices):
         FARMER = "farmer", "Farmer"
         DEALER = "dealer", "Equipment Dealer"
+        INPUT_DEALER = "input_dealer", "Input Dealer"
         BUYER = "buyer", "Buyer"
         ADMIN = "admin", "Admin"
 
@@ -52,6 +53,26 @@ class DealerProfile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="dealer_profile")
     business_name = models.CharField(max_length=255)
     service_radius_km = models.PositiveIntegerField(default=15)
+    is_active = models.BooleanField(default=True)
+
+    def __str__(self):
+        return self.business_name
+
+
+class InputDealerProfile(models.Model):
+    """Sells farm inputs (seed, fertilizer, agrochemicals, tools) — distinct
+    from DealerProfile, which is equipment/machinery rental."""
+
+    class Specialization(models.TextChoices):
+        SEEDS = "seeds", "Seeds"
+        FERTILIZER = "fertilizer", "Fertilizer"
+        AGROCHEMICALS = "agrochemicals", "Agrochemicals"
+        TOOLS = "tools", "Tools & Equipment Supplies"
+        GENERAL = "general", "General Agro-Input Store"
+
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="input_dealer_profile")
+    business_name = models.CharField(max_length=255)
+    specialization = models.CharField(max_length=20, choices=Specialization.choices, default=Specialization.GENERAL)
     is_active = models.BooleanField(default=True)
 
     def __str__(self):

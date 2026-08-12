@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { CalendarClock, Plus } from "lucide-react";
 import { useFetch } from "../../hooks/useFetch";
 import { apiClient } from "../../api/client";
 import { useToast } from "../../context/ToastContext";
 import StatusBadge from "../../components/ui/StatusBadge";
 import EmptyState from "../../components/ui/EmptyState";
+import SearchInput from "../../components/ui/SearchInput";
 import DetailModal, { type DetailAction } from "../../components/ui/DetailModal";
 import type { Equipment, Paginated, EquipmentBooking, User } from "../../types";
 
@@ -23,6 +24,18 @@ export default function AdminBookings() {
   const { data: farmers } = useFetch<Paginated<User>>("/accounts/users/?role=farmer");
   const { data: equipmentList } = useFetch<Paginated<Equipment>>("/equipment/equipment/?is_available=true");
   const [busyId, setBusyId] = useState<number | null>(null);
+  const [search, setSearch] = useState("");
+
+  const filteredBookings = useMemo(() => {
+    if (!bookings?.results) return [];
+    const q = search.trim().toLowerCase();
+    if (!q) return bookings.results;
+    return bookings.results.filter(
+      (b) =>
+        (b.equipment_name ?? "").toLowerCase().includes(q) ||
+        (b.farmer_name ?? "").toLowerCase().includes(q)
+    );
+  }, [bookings, search]);
   const [openBookingId, setOpenBookingId] = useState<number | null>(null);
   const toast = useToast();
 
@@ -104,6 +117,10 @@ export default function AdminBookings() {
         </button>
       </div>
 
+      <div className="mb-3">
+        <SearchInput value={search} onChange={setSearch} placeholder="Search bookings…" className="max-w-xs" />
+      </div>
+
       {formOpen && (
         <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-5 mb-6">
           <h3 className="font-semibold mb-3">Book Equipment on Behalf of a Farmer</h3>
@@ -179,7 +196,7 @@ export default function AdminBookings() {
       )}
 
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-        {bookings?.results.length ? (
+        {filteredBookings.length ? (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-gray-50 text-gray-500 text-xs uppercase">
@@ -193,7 +210,7 @@ export default function AdminBookings() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {bookings.results.map((b) => (
+                {filteredBookings.map((b) => (
                   <tr
                     key={b.id}
                     onClick={() => setOpenBookingId(b.id)}
@@ -215,7 +232,11 @@ export default function AdminBookings() {
             </table>
           </div>
         ) : !isLoading ? (
-          <EmptyState icon={CalendarClock} title="No bookings yet" description="Equipment bookings will appear here." />
+          <EmptyState
+            icon={CalendarClock}
+            title={search ? "No bookings match your search" : "No bookings yet"}
+            description={search ? undefined : "Equipment bookings will appear here."}
+          />
         ) : (
           <p className="px-5 py-8 text-center text-sm text-gray-400">Loading…</p>
         )}

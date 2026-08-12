@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Ban, RotateCcw, ShieldCheck, ShieldOff, Trash2, Users as UsersIcon } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import { useFetch } from "../../hooks/useFetch";
@@ -6,9 +6,10 @@ import { apiClient } from "../../api/client";
 import { useToast } from "../../context/ToastContext";
 import { useConfirm } from "../../context/ConfirmContext";
 import EmptyState from "../../components/ui/EmptyState";
+import SearchInput from "../../components/ui/SearchInput";
 import type { Paginated, User, UserRole } from "../../types";
 
-const ROLES: UserRole[] = ["farmer", "dealer", "buyer", "admin"];
+const ROLES: UserRole[] = ["farmer", "dealer", "input_dealer", "buyer", "admin"];
 
 export default function AdminUsers() {
   const { user: currentUser } = useAuth();
@@ -16,6 +17,20 @@ export default function AdminUsers() {
   const [busyId, setBusyId] = useState<number | null>(null);
   const toast = useToast();
   const confirm = useConfirm();
+  const [search, setSearch] = useState("");
+
+  const filteredUsers = useMemo(() => {
+    if (!users?.results) return [];
+    const q = search.trim().toLowerCase();
+    if (!q) return users.results;
+    return users.results.filter(
+      (u) =>
+        u.username.toLowerCase().includes(q) ||
+        `${u.first_name} ${u.last_name}`.toLowerCase().includes(q) ||
+        (u.phone_number ?? "").toLowerCase().includes(q) ||
+        u.role.toLowerCase().includes(q)
+    );
+  }, [users, search]);
 
   async function toggleVerified(u: User) {
     setBusyId(u.id);
@@ -89,13 +104,16 @@ export default function AdminUsers() {
 
   return (
     <div className="p-4 md:p-8 max-w-6xl mx-auto">
-      <div className="mb-6">
-        <h1 className="text-page-title">Users</h1>
-        <p className="text-page-subtitle">Manage every account on the platform</p>
+      <div className="mb-6 flex items-center justify-between gap-3 flex-wrap">
+        <div>
+          <h1 className="text-page-title">Users</h1>
+          <p className="text-page-subtitle">Manage every account on the platform</p>
+        </div>
+        <SearchInput value={search} onChange={setSearch} placeholder="Search users…" className="w-64" />
       </div>
 
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-        {users?.results.length ? (
+        {filteredUsers.length ? (
           <div className="overflow-x-auto">
 <table className="w-full text-sm">
             <thead className="bg-gray-50 text-gray-500 text-xs uppercase">
@@ -109,7 +127,7 @@ export default function AdminUsers() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {users.results.map((u) => {
+              {filteredUsers.map((u) => {
                 const isSelf = u.id === currentUser?.id;
                 return (
                   <tr key={u.id} className={busyId === u.id ? "opacity-50" : ""}>
@@ -185,7 +203,11 @@ export default function AdminUsers() {
           </table>
 </div>
         ) : !isLoading ? (
-          <EmptyState icon={UsersIcon} title="No users yet" description="Accounts will appear here as people register." />
+          <EmptyState
+            icon={UsersIcon}
+            title={search ? "No users match your search" : "No users yet"}
+            description={search ? undefined : "Accounts will appear here as people register."}
+          />
         ) : (
           <p className="px-5 py-8 text-center text-sm text-gray-400">Loading…</p>
         )}

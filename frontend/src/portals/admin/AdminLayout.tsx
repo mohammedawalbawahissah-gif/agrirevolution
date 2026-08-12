@@ -1,4 +1,4 @@
-import { LayoutDashboard, Users, Tractor, CalendarCheck, Sprout, ShoppingCart, Receipt, Leaf, User as UserIcon } from "lucide-react";
+import { LayoutDashboard, Users, Tractor, CalendarCheck, Sprout, Package, ClipboardList, ShoppingCart, Receipt, Leaf, User as UserIcon } from "lucide-react";
 import PortalShell from "../../components/PortalShell";
 
 const NAV_ITEMS = [
@@ -8,6 +8,8 @@ const NAV_ITEMS = [
   { to: "/admin/bookings", label: "Bookings", icon: CalendarCheck },
   { to: "/admin/listings", label: "Listings", icon: Sprout },
   { to: "/admin/orders", label: "Orders", icon: ShoppingCart },
+  { to: "/admin/input-products", label: "Input Products", icon: Package },
+  { to: "/admin/input-orders", label: "Input Orders", icon: ClipboardList },
   { to: "/admin/crop-health", label: "Crop Health", icon: Leaf },
   { to: "/admin/transactions", label: "Transactions", icon: Receipt },
   { to: "/admin/account", label: "Account", icon: UserIcon },
