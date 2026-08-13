@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { CalendarClock } from "lucide-react";
 import { useFetch } from "../../hooks/useFetch";
 import { useAuth } from "../../context/AuthContext";
@@ -6,6 +6,7 @@ import { apiClient } from "../../api/client";
 import { useToast } from "../../context/ToastContext";
 import StatusBadge from "../../components/ui/StatusBadge";
 import EmptyState from "../../components/ui/EmptyState";
+import SearchInput from "../../components/ui/SearchInput";
 import DetailModal, { type DetailAction } from "../../components/ui/DetailModal";
 import type { Paginated, EquipmentBooking } from "../../types";
 
@@ -36,6 +37,19 @@ export default function DealerBookings() {
   const toast = useToast();
   const [busyId, setBusyId] = useState<number | null>(null);
   const [openBookingId, setOpenBookingId] = useState<number | null>(null);
+  const [search, setSearch] = useState("");
+
+  const filteredBookings = useMemo(() => {
+    if (!bookings?.results) return [];
+    const q = search.trim().toLowerCase();
+    if (!q) return bookings.results;
+    return bookings.results.filter(
+      (b) =>
+        (b.farmer_name ?? "").toLowerCase().includes(q) ||
+        (b.equipment_name ?? "").toLowerCase().includes(q) ||
+        b.status.toLowerCase().includes(q)
+    );
+  }, [bookings, search]);
 
   const openBooking = bookings?.results.find((b) => b.id === openBookingId) ?? null;
 
@@ -74,15 +88,18 @@ export default function DealerBookings() {
 
   return (
     <div className="p-4 md:p-8 max-w-4xl mx-auto space-y-8">
-      <div>
-        <h1 className="text-page-title">Bookings</h1>
-        <p className="text-page-subtitle">Requests against your equipment</p>
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div>
+          <h1 className="text-page-title">Bookings</h1>
+          <p className="text-page-subtitle">Requests against your equipment</p>
+        </div>
+        <SearchInput value={search} onChange={setSearch} placeholder="Search bookings…" className="w-56" />
       </div>
 
       <section className="bg-white rounded-xl shadow-sm border border-gray-100">
-        {bookings?.results.length ? (
+        {filteredBookings.length ? (
           <div className="divide-y divide-gray-100">
-            {bookings.results.map((b) => (
+            {filteredBookings.map((b) => (
               <button
                 key={b.id}
                 onClick={() => setOpenBookingId(b.id)}
@@ -99,8 +116,8 @@ export default function DealerBookings() {
         ) : (
           <EmptyState
             icon={CalendarClock}
-            title="No bookings yet"
-            description="Requests for your equipment will show up here."
+            title={search ? "No bookings match your search" : "No bookings yet"}
+            description={search ? undefined : "Requests for your equipment will show up here."}
           />
         )}
       </section>

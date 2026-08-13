@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { ClipboardList } from "lucide-react";
 import { useFetch } from "../../hooks/useFetch";
 import { useAuth } from "../../context/AuthContext";
@@ -7,6 +7,7 @@ import { useToast } from "../../context/ToastContext";
 import { useConfirm } from "../../context/ConfirmContext";
 import StatusBadge from "../../components/ui/StatusBadge";
 import EmptyState from "../../components/ui/EmptyState";
+import SearchInput from "../../components/ui/SearchInput";
 import DetailModal, { type DetailAction } from "../../components/ui/DetailModal";
 import type { Order, Paginated } from "../../types";
 
@@ -31,6 +32,19 @@ export default function FarmerOrders() {
   const confirm = useConfirm();
   const [busyId, setBusyId] = useState<number | null>(null);
   const [openOrderId, setOpenOrderId] = useState<number | null>(null);
+  const [search, setSearch] = useState("");
+
+  const filteredOrders = useMemo(() => {
+    if (!orders?.results) return [];
+    const q = search.trim().toLowerCase();
+    if (!q) return orders.results;
+    return orders.results.filter(
+      (o) =>
+        (o.listing_crop ?? "").toLowerCase().includes(q) ||
+        (o.buyer_name ?? "").toLowerCase().includes(q) ||
+        o.status.toLowerCase().includes(q)
+    );
+  }, [orders, search]);
 
   const openOrder = orders?.results.find((o) => o.id === openOrderId) ?? null;
 
@@ -79,15 +93,18 @@ export default function FarmerOrders() {
 
   return (
     <div className="p-4 md:p-8 max-w-4xl mx-auto space-y-6">
-      <div>
-        <h1 className="text-page-title">Orders</h1>
-        <p className="text-page-subtitle">Buyers who want to purchase your produce</p>
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div>
+          <h1 className="text-page-title">Orders</h1>
+          <p className="text-page-subtitle">Buyers who want to purchase your produce</p>
+        </div>
+        <SearchInput value={search} onChange={setSearch} placeholder="Search orders…" className="w-56" />
       </div>
 
       <section className="bg-white rounded-xl shadow-sm border border-gray-100">
-        {orders?.results.length ? (
+        {filteredOrders.length ? (
           <div className="divide-y divide-gray-100">
-            {orders.results.map((o) => (
+            {filteredOrders.map((o) => (
               <button
                 key={o.id}
                 onClick={() => setOpenOrderId(o.id)}
@@ -105,8 +122,8 @@ export default function FarmerOrders() {
         ) : !isLoading ? (
           <EmptyState
             icon={ClipboardList}
-            title="No orders yet"
-            description="When a buyer orders one of your listings, it'll show up here."
+            title={search ? "No orders match your search" : "No orders yet"}
+            description={search ? undefined : "When a buyer orders one of your listings, it'll show up here."}
           />
         ) : (
           <p className="px-5 py-8 text-center text-sm text-gray-400">Loading…</p>

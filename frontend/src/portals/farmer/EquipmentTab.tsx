@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useAuth } from "../../context/AuthContext";
 import { useFetch } from "../../hooks/useFetch";
 import { apiClient } from "../../api/client";
+import SearchInput from "../../components/ui/SearchInput";
 import type { Paginated, Equipment, EquipmentBooking, PaymentChannel } from "../../types";
 import { PAYMENT_CHANNEL_LABELS } from "../../types";
 
@@ -17,6 +18,16 @@ export default function EquipmentTab() {
     user ? "/equipment/bookings/" : null,
     [user?.id]
   );
+
+  const [search, setSearch] = useState("");
+  const filteredEquipment = useMemo(() => {
+    if (!equipment?.results) return [];
+    const q = search.trim().toLowerCase();
+    if (!q) return equipment.results;
+    return equipment.results.filter(
+      (item) => item.name.toLowerCase().includes(q) || item.category.toLowerCase().includes(q)
+    );
+  }, [equipment, search]);
 
   const [formMode, setFormMode] = useState<
     { type: "create"; equipment: Equipment } | { type: "edit"; booking: EquipmentBooking } | null
@@ -106,14 +117,17 @@ export default function EquipmentTab() {
 
   return (
     <div className="p-4 md:p-8 max-w-4xl mx-auto space-y-8">
-      <div>
-        <h2 className="text-lg font-semibold">Equipment</h2>
-        <p className="text-sm text-gray-500 mt-1">Request mechanized equipment, pay per use via MoMo</p>
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div>
+          <h2 className="text-lg font-semibold">Equipment</h2>
+          <p className="text-sm text-gray-500 mt-1">Request mechanized equipment, pay per use via MoMo</p>
+        </div>
+        <SearchInput value={search} onChange={setSearch} placeholder="Search equipment…" className="w-56" />
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {isLoading && <p className="text-sm text-gray-400 col-span-2">Loading…</p>}
-        {equipment?.results.map((item) => (
+        {filteredEquipment.map((item) => (
           <div key={item.id} className="bg-white rounded-lg shadow-sm border border-gray-100 p-5">
             <p className="font-semibold">{item.name}</p>
             <p className="text-sm text-gray-500 capitalize">{item.category}</p>
@@ -126,8 +140,10 @@ export default function EquipmentTab() {
             </button>
           </div>
         ))}
-        {!isLoading && equipment?.results.length === 0 && (
-          <p className="text-sm text-gray-400 col-span-2">No equipment available right now.</p>
+        {!isLoading && filteredEquipment.length === 0 && (
+          <p className="text-sm text-gray-400 col-span-2">
+            {search ? "No equipment matches your search." : "No equipment available right now."}
+          </p>
         )}
       </div>
 

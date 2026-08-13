@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useFetch } from "../../hooks/useFetch";
 import { apiClient } from "../../api/client";
+import SearchInput from "../../components/ui/SearchInput";
 import type { Paginated, PaymentChannel, ProduceListing } from "../../types";
 import { PAYMENT_CHANNEL_LABELS } from "../../types";
 
@@ -8,6 +9,16 @@ export default function BuyerMarketplace() {
   const { data: listings, isLoading, refetch } = useFetch<Paginated<ProduceListing>>(
     "/marketplace/listings/?status=listed"
   );
+  const [search, setSearch] = useState("");
+  const filteredListings = useMemo(() => {
+    if (!listings?.results) return [];
+    const q = search.trim().toLowerCase();
+    if (!q) return listings.results;
+    return listings.results.filter(
+      (l) => l.crop.toLowerCase().includes(q) || (l.delivery_location ?? "").toLowerCase().includes(q)
+    );
+  }, [listings, search]);
+
   const [orderingListing, setOrderingListing] = useState<ProduceListing | null>(null);
   const [deliveryMethod, setDeliveryMethod] = useState<"pickup" | "delivery">("pickup");
   const [deliveryAddress, setDeliveryAddress] = useState("");
@@ -52,9 +63,12 @@ export default function BuyerMarketplace() {
 
   return (
     <div className="p-4 md:p-8 max-w-4xl mx-auto space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Marketplace</h1>
-        <p className="text-sm text-gray-500 mt-1">Browse produce listed by farmers</p>
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div>
+          <h1 className="text-2xl font-bold">Marketplace</h1>
+          <p className="text-sm text-gray-500 mt-1">Browse produce listed by farmers</p>
+        </div>
+        <SearchInput value={search} onChange={setSearch} placeholder="Search produce…" className="w-56" />
       </div>
 
       {error && <p className="text-sm text-red-600">{error}</p>}
@@ -62,7 +76,7 @@ export default function BuyerMarketplace() {
       <section className="bg-white rounded-xl shadow-sm border border-gray-100">
         <div className="divide-y">
           {isLoading && <p className="px-5 py-4 text-sm text-gray-400">Loading...</p>}
-          {listings?.results.map((l) => (
+          {filteredListings.map((l) => (
             <div key={l.id} className="px-5 py-4 flex items-center justify-between text-sm">
               <div>
                 <p className="font-medium">
@@ -89,8 +103,10 @@ export default function BuyerMarketplace() {
               </button>
             </div>
           ))}
-          {listings?.results.length === 0 && (
-            <p className="px-5 py-4 text-sm text-gray-400">No produce listed right now.</p>
+          {!isLoading && filteredListings.length === 0 && (
+            <p className="px-5 py-4 text-sm text-gray-400">
+              {search ? "No produce matches your search." : "No produce listed right now."}
+            </p>
           )}
         </div>
       </section>

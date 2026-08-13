@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { XCircle, ClipboardList, Pencil } from "lucide-react";
 import { useFetch } from "../../hooks/useFetch";
 import { useAuth } from "../../context/AuthContext";
@@ -8,6 +8,7 @@ import { useConfirm } from "../../context/ConfirmContext";
 import StatusBadge from "../../components/ui/StatusBadge";
 import EmptyState from "../../components/ui/EmptyState";
 import Button from "../../components/ui/Button";
+import SearchInput from "../../components/ui/SearchInput";
 import type { Paginated, Order, PaymentChannel } from "../../types";
 import { PAYMENT_CHANNEL_LABELS } from "../../types";
 
@@ -22,6 +23,19 @@ export default function BuyerOrders() {
 
   const [busyId, setBusyId] = useState<number | null>(null);
   const [paymentMessage, setPaymentMessage] = useState<Record<number, string>>({});
+  const [search, setSearch] = useState("");
+
+  const filteredOrders = useMemo(() => {
+    if (!myOrders?.results) return [];
+    const q = search.trim().toLowerCase();
+    if (!q) return myOrders.results;
+    return myOrders.results.filter(
+      (o) =>
+        (o.listing_crop ?? "").toLowerCase().includes(q) ||
+        (o.farmer_name ?? "").toLowerCase().includes(q) ||
+        o.status.toLowerCase().includes(q)
+    );
+  }, [myOrders, search]);
 
   const [editingOrder, setEditingOrder] = useState<Order | null>(null);
   const [editDeliveryMethod, setEditDeliveryMethod] = useState<"pickup" | "delivery">("pickup");
@@ -108,15 +122,18 @@ export default function BuyerOrders() {
 
   return (
     <div className="p-4 md:p-8 max-w-4xl mx-auto space-y-6">
-      <div>
-        <h1 className="text-page-title">My Orders</h1>
-        <p className="text-page-subtitle">Track and pay for produce you've ordered</p>
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div>
+          <h1 className="text-page-title">My Orders</h1>
+          <p className="text-page-subtitle">Track and pay for produce you've ordered</p>
+        </div>
+        <SearchInput value={search} onChange={setSearch} placeholder="Search orders…" className="w-56" />
       </div>
 
       <section className="bg-white rounded-xl shadow-sm border border-gray-100">
-        {myOrders?.results.length ? (
+        {filteredOrders.length ? (
           <div className="divide-y divide-gray-100">
-            {myOrders.results.map((o) => (
+            {filteredOrders.map((o) => (
               <div key={o.id} className={`px-5 py-3 text-sm ${busyId === o.id ? "opacity-50" : ""}`}>
                 <div className="flex items-center justify-between">
                   <span className="text-gray-900">
@@ -162,8 +179,8 @@ export default function BuyerOrders() {
         ) : (
           <EmptyState
             icon={ClipboardList}
-            title="No orders placed yet"
-            description="Produce you order from the marketplace will show up here."
+            title={search ? "No orders match your search" : "No orders placed yet"}
+            description={search ? undefined : "Produce you order from the marketplace will show up here."}
           />
         )}
       </section>

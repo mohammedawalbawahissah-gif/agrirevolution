@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { View, Text, StyleSheet, FlatList, RefreshControl, TouchableOpacity, Alert } from "react-native";
 import { useAuth } from "../../context/AuthContext";
 import { useFetch } from "../../hooks/useFetch";
 import { apiClient } from "../../api/client";
 import { useToast } from "../../context/ToastContext";
 import StatusBadge from "../../components/ui/StatusBadge";
+import SearchInput from "../../components/ui/SearchInput";
 import DetailModal, { type DetailAction } from "../../components/ui/DetailModal";
 import { colors, radius } from "../../theme/tokens";
 import type { Order, Paginated } from "../../types";
@@ -24,6 +25,19 @@ export default function OrdersScreen() {
   const toast = useToast();
   const [busyId, setBusyId] = useState<number | null>(null);
   const [openOrderId, setOpenOrderId] = useState<number | null>(null);
+  const [search, setSearch] = useState("");
+
+  const filteredOrders = useMemo(() => {
+    if (!orders?.results) return [];
+    const q = search.trim().toLowerCase();
+    if (!q) return orders.results;
+    return orders.results.filter(
+      (o) =>
+        (o.listing_crop ?? "").toLowerCase().includes(q) ||
+        (o.buyer_name ?? "").toLowerCase().includes(q) ||
+        o.status.toLowerCase().includes(q)
+    );
+  }, [orders, search]);
 
   const openOrder = orders?.results.find((o) => o.id === openOrderId) ?? null;
 
@@ -80,9 +94,12 @@ export default function OrdersScreen() {
 
       <FlatList
         contentContainerStyle={styles.list}
-        data={orders?.results ?? []}
+        data={filteredOrders}
         keyExtractor={(item) => String(item.id)}
         refreshControl={<RefreshControl refreshing={isLoading} onRefresh={refetch} />}
+        ListHeaderComponent={
+          <SearchInput value={search} onChange={setSearch} placeholder="Search orders…" />
+        }
         renderItem={({ item }) => (
           <TouchableOpacity
             style={[styles.row, busyId === item.id && styles.rowBusy]}
@@ -103,7 +120,9 @@ export default function OrdersScreen() {
         ListEmptyComponent={
           !isLoading ? (
             <View style={styles.empty}>
-              <Text style={styles.emptyText}>When a buyer orders one of your listings, it'll show up here.</Text>
+              <Text style={styles.emptyText}>
+                {search ? "No orders match your search." : "When a buyer orders one of your listings, it'll show up here."}
+              </Text>
             </View>
           ) : null
         }

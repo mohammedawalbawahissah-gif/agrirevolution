@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import {
   View,
   Text,
@@ -15,6 +15,7 @@ import { useAuth } from "../../context/AuthContext";
 import { useFetch } from "../../hooks/useFetch";
 import { apiClient } from "../../api/client";
 import { useToast } from "../../context/ToastContext";
+import SearchInput from "../../components/ui/SearchInput";
 import type { Paginated, PaymentChannel, ProduceListing, Order } from "../../types";
 import { PAYMENT_CHANNEL_LABELS } from "../../types";
 
@@ -32,6 +33,16 @@ export default function BrowseProduceScreen() {
     user ? "/marketplace/orders/" : null,
     [user?.id]
   );
+
+  const [search, setSearch] = useState("");
+  const filteredListings = useMemo(() => {
+    if (!listings?.results) return [];
+    const q = search.trim().toLowerCase();
+    if (!q) return listings.results;
+    return listings.results.filter(
+      (l) => l.crop.toLowerCase().includes(q) || (l.delivery_location ?? "").toLowerCase().includes(q)
+    );
+  }, [listings, search]);
 
   const [orderingListing, setOrderingListing] = useState<ProduceListing | null>(null);
   const [deliveryMethod, setDeliveryMethod] = useState<"pickup" | "delivery">("pickup");
@@ -163,9 +174,12 @@ export default function BrowseProduceScreen() {
 
       <FlatList
         contentContainerStyle={styles.list}
-        data={listings?.results ?? []}
+        data={filteredListings}
         keyExtractor={(item) => String(item.id)}
         refreshControl={<RefreshControl refreshing={isLoading} onRefresh={refetchListings} />}
+        ListHeaderComponent={
+          <SearchInput value={search} onChange={setSearch} placeholder="Search produce…" />
+        }
         renderItem={({ item }) => (
           <View style={styles.card}>
             <Text style={styles.cardCrop}>
@@ -198,7 +212,9 @@ export default function BrowseProduceScreen() {
         ListEmptyComponent={
           !isLoading ? (
             <View style={styles.empty}>
-              <Text style={styles.emptyText}>No produce listed right now.</Text>
+              <Text style={styles.emptyText}>
+                {search ? "No produce matches your search." : "No produce listed right now."}
+              </Text>
             </View>
           ) : null
         }

@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useAuth } from "../../context/AuthContext";
 import { useFetch } from "../../hooks/useFetch";
 import { apiClient } from "../../api/client";
 import { useToast } from "../../context/ToastContext";
 import StatusBadge from "../../components/ui/StatusBadge";
+import SearchInput from "../../components/ui/SearchInput";
 import type { Paginated, PaymentChannel, ProduceListing } from "../../types";
 import { PAYMENT_CHANNEL_LABELS } from "../../types";
 
@@ -53,6 +54,16 @@ export default function MarketplaceTab() {
       setIsGrading(false);
     }
   }
+
+  const [search, setSearch] = useState("");
+  const filteredListings = useMemo(() => {
+    if (!listings?.results) return [];
+    const q = search.trim().toLowerCase();
+    if (!q) return listings.results;
+    return listings.results.filter(
+      (l) => l.crop.toLowerCase().includes(q) || l.status.toLowerCase().includes(q)
+    );
+  }, [listings, search]);
 
   const [formTarget, setFormTarget] = useState<"new" | ProduceListing | null>(null);
   const [crop, setCrop] = useState("");
@@ -154,17 +165,20 @@ export default function MarketplaceTab() {
 
   return (
     <div className="p-4 md:p-8 max-w-4xl mx-auto space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-3 flex-wrap">
         <div>
           <h2 className="text-lg font-semibold">Marketplace</h2>
           <p className="text-sm text-gray-500 mt-1">Sell your produce with AI-graded fair pricing</p>
         </div>
-        <button
-          onClick={openCreateForm}
-          className="bg-brand-green text-white text-sm rounded-md px-4 py-2 hover:opacity-90"
-        >
-          + List Produce
-        </button>
+        <div className="flex items-center gap-3">
+          <SearchInput value={search} onChange={setSearch} placeholder="Search your listings…" className="w-56" />
+          <button
+            onClick={openCreateForm}
+            className="bg-brand-green text-white text-sm rounded-md px-4 py-2 hover:opacity-90"
+          >
+            + List Produce
+          </button>
+        </div>
       </div>
 
       {formTarget !== null && (
@@ -294,7 +308,7 @@ export default function MarketplaceTab() {
 
       <div className="bg-white rounded-lg shadow-sm border border-gray-100 divide-y">
         {isLoading && <p className="px-5 py-4 text-sm text-gray-400">Loading…</p>}
-        {listings?.results.map((l) => (
+        {filteredListings.map((l) => (
           <div key={l.id} className="px-5 py-4 flex items-center justify-between text-sm gap-4">
             <div className="min-w-0">
               <p className="font-medium">
@@ -330,9 +344,9 @@ export default function MarketplaceTab() {
             <StatusBadge status={l.status} />
           </div>
         ))}
-        {!isLoading && listings?.results.length === 0 && (
+        {!isLoading && filteredListings.length === 0 && (
           <p className="px-5 py-8 text-center text-sm text-gray-400">
-            No produce listed yet. Tap "List Produce" to sell your first batch.
+            {search ? "No listings match your search." : 'No produce listed yet. Tap "List Produce" to sell your first batch.'}
           </p>
         )}
       </div>

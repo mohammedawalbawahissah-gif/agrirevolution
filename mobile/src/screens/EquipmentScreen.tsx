@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import {
   View,
   Text,
@@ -13,6 +13,7 @@ import {
 import { useAuth } from "../context/AuthContext";
 import { useFetch } from "../hooks/useFetch";
 import { apiClient } from "../api/client";
+import SearchInput from "../components/ui/SearchInput";
 import type { Paginated, Equipment, EquipmentBooking, PaymentChannel } from "../types";
 import { PAYMENT_CHANNEL_LABELS } from "../types";
 
@@ -33,6 +34,16 @@ export default function EquipmentScreen() {
     user ? "/equipment/bookings/" : null,
     [user?.id]
   );
+
+  const [search, setSearch] = useState("");
+  const filteredEquipment = useMemo(() => {
+    if (!equipment?.results) return [];
+    const q = search.trim().toLowerCase();
+    if (!q) return equipment.results;
+    return equipment.results.filter(
+      (item) => item.name.toLowerCase().includes(q) || item.category.toLowerCase().includes(q)
+    );
+  }, [equipment, search]);
 
   const [formMode, setFormMode] = useState<
     { type: "create"; equipment: Equipment } | { type: "edit"; booking: EquipmentBooking } | null
@@ -127,9 +138,12 @@ export default function EquipmentScreen() {
 
       <FlatList
         contentContainerStyle={styles.list}
-        data={equipment?.results ?? []}
+        data={filteredEquipment}
         keyExtractor={(item) => String(item.id)}
         refreshControl={<RefreshControl refreshing={isLoading} onRefresh={refetch} />}
+        ListHeaderComponent={
+          <SearchInput value={search} onChange={setSearch} placeholder="Search equipment…" />
+        }
         renderItem={({ item }) => (
           <View style={styles.card}>
             <Text style={styles.cardName}>{item.name}</Text>
@@ -143,7 +157,9 @@ export default function EquipmentScreen() {
         ListEmptyComponent={
           !isLoading ? (
             <View style={styles.empty}>
-              <Text style={styles.emptyText}>No equipment available right now.</Text>
+              <Text style={styles.emptyText}>
+                {search ? "No equipment matches your search." : "No equipment available right now."}
+              </Text>
             </View>
           ) : null
         }

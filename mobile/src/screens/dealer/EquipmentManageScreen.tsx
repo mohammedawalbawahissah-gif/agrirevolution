@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import {
   View,
   Text,
@@ -19,6 +19,7 @@ import { apiClient } from "../../api/client";
 import { useToast } from "../../context/ToastContext";
 import StatusBadge from "../../components/ui/StatusBadge";
 import Button from "../../components/ui/Button";
+import SearchInput from "../../components/ui/SearchInput";
 import DetailModal, { type DetailAction, type DetailField } from "../../components/ui/DetailModal";
 import { colors, radius } from "../../theme/tokens";
 import type { Paginated, Equipment, EquipmentBooking } from "../../types";
@@ -54,6 +55,16 @@ export default function EquipmentManageScreen() {
   const [photoUrl, setPhotoUrl] = useState("");
   const [isUploading, setIsUploading] = useState(false);
   const [openBookingId, setOpenBookingId] = useState<number | null>(null);
+
+  const [search, setSearch] = useState("");
+  const filteredEquipment = useMemo(() => {
+    if (!equipment?.results) return [];
+    const q = search.trim().toLowerCase();
+    if (!q) return equipment.results;
+    return equipment.results.filter(
+      (item) => item.name.toLowerCase().includes(q) || item.category.toLowerCase().includes(q)
+    );
+  }, [equipment, search]);
 
   const isEditing = editingItem !== null;
   const openBooking = bookings?.results.find((b) => b.id === openBookingId) ?? null;
@@ -231,9 +242,12 @@ export default function EquipmentManageScreen() {
 
       <FlatList
         contentContainerStyle={styles.list}
-        data={equipment?.results ?? []}
+        data={filteredEquipment}
         keyExtractor={(item) => String(item.id)}
         refreshControl={<RefreshControl refreshing={isLoading} onRefresh={refetch} />}
+        ListHeaderComponent={
+          <SearchInput value={search} onChange={setSearch} placeholder="Search equipment…" />
+        }
         renderItem={({ item }) => (
           <View style={[styles.card, busyId === item.id && styles.cardBusy]}>
             <View style={styles.cardHeaderRow}>
@@ -263,7 +277,9 @@ export default function EquipmentManageScreen() {
         ListEmptyComponent={
           !isLoading ? (
             <View style={styles.empty}>
-              <Text style={styles.emptyText}>No equipment listed yet. Tap below to add one.</Text>
+              <Text style={styles.emptyText}>
+                {search ? "No equipment matches your search." : "No equipment listed yet. Tap below to add one."}
+              </Text>
             </View>
           ) : null
         }

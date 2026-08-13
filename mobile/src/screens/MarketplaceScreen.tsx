@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import {
   View,
   Text,
@@ -16,6 +16,7 @@ import { useAuth } from "../context/AuthContext";
 import { useFetch } from "../hooks/useFetch";
 import { apiClient } from "../api/client";
 import { useToast } from "../context/ToastContext";
+import SearchInput from "../components/ui/SearchInput";
 import type { Paginated, PaymentChannel, ProduceListing } from "../types";
 import { PAYMENT_CHANNEL_LABELS } from "../types";
 
@@ -38,6 +39,16 @@ export default function MarketplaceScreen() {
     user ? `/marketplace/listings/?farmer=${user.id}` : null,
     [user?.id]
   );
+
+  const [search, setSearch] = useState("");
+  const filteredListings = useMemo(() => {
+    if (!listings?.results) return [];
+    const q = search.trim().toLowerCase();
+    if (!q) return listings.results;
+    return listings.results.filter(
+      (l) => l.crop.toLowerCase().includes(q) || l.status.toLowerCase().includes(q)
+    );
+  }, [listings, search]);
 
   const [formTarget, setFormTarget] = useState<"new" | ProduceListing | null>(null);
   const [crop, setCrop] = useState("");
@@ -193,9 +204,12 @@ export default function MarketplaceScreen() {
 
       <FlatList
         contentContainerStyle={styles.list}
-        data={listings?.results ?? []}
+        data={filteredListings}
         keyExtractor={(item) => String(item.id)}
         refreshControl={<RefreshControl refreshing={isLoading} onRefresh={refetch} />}
+        ListHeaderComponent={
+          <SearchInput value={search} onChange={setSearch} placeholder="Search your listings…" />
+        }
         renderItem={({ item }) => (
           <View style={styles.card}>
             <View style={styles.cardHeader}>
@@ -236,7 +250,9 @@ export default function MarketplaceScreen() {
         ListEmptyComponent={
           !isLoading ? (
             <View style={styles.empty}>
-              <Text style={styles.emptyText}>No produce listed yet. Tap below to list your first sale.</Text>
+              <Text style={styles.emptyText}>
+                {search ? "No listings match your search." : "No produce listed yet. Tap below to list your first sale."}
+              </Text>
             </View>
           ) : null
         }

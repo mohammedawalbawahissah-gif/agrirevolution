@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { useState, useMemo, type FormEvent } from "react";
 import { Trash2, PauseCircle, PlayCircle, Pencil, Tractor, X } from "lucide-react";
 import { useFetch } from "../../hooks/useFetch";
 import { useAuth } from "../../context/AuthContext";
@@ -8,6 +8,7 @@ import { useConfirm } from "../../context/ConfirmContext";
 import StatusBadge from "../../components/ui/StatusBadge";
 import EmptyState from "../../components/ui/EmptyState";
 import Button from "../../components/ui/Button";
+import SearchInput from "../../components/ui/SearchInput";
 import type { Paginated, Equipment } from "../../types";
 
 const CATEGORIES = ["ploughing", "planting", "harvesting", "spraying", "transport"] as const;
@@ -36,6 +37,16 @@ export default function DealerEquipment() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [busyId, setBusyId] = useState<number | null>(null);
+
+  const [search, setSearch] = useState("");
+  const filteredEquipment = useMemo(() => {
+    if (!equipment?.results) return [];
+    const q = search.trim().toLowerCase();
+    if (!q) return equipment.results;
+    return equipment.results.filter(
+      (eq) => eq.name.toLowerCase().includes(q) || eq.category.toLowerCase().includes(q)
+    );
+  }, [equipment, search]);
 
   const [editingItem, setEditingItem] = useState<Equipment | null>(null);
   const [editForm, setEditForm] = useState({
@@ -266,14 +277,15 @@ export default function DealerEquipment() {
       </section>
 
       <section className="bg-white rounded-xl shadow-sm border border-gray-100">
-        <div className="px-5 py-4 border-b border-gray-100">
+        <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between gap-3 flex-wrap">
           <h2 className="text-section-title">My Equipment</h2>
+          <SearchInput value={search} onChange={setSearch} placeholder="Search equipment…" className="w-56" />
         </div>
         {equipmentLoading ? (
           <p className="px-5 py-4 text-sm text-gray-400">Loading...</p>
-        ) : equipment?.results.length ? (
+        ) : filteredEquipment.length ? (
           <div className="divide-y divide-gray-100">
-            {equipment.results.map((eq) => (
+            {filteredEquipment.map((eq) => (
               <div
                 key={eq.id}
                 className={`px-5 py-3 flex items-center justify-between text-sm ${busyId === eq.id ? "opacity-50" : ""}`}
@@ -324,7 +336,11 @@ export default function DealerEquipment() {
             ))}
           </div>
         ) : (
-          <EmptyState icon={Tractor} title="No equipment listed yet" description="Add your first piece of equipment above." />
+          <EmptyState
+            icon={Tractor}
+            title={search ? "No equipment matches your search" : "No equipment listed yet"}
+            description={search ? undefined : "Add your first piece of equipment above."}
+          />
         )}
       </section>
 
