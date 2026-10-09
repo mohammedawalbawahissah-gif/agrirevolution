@@ -19,6 +19,7 @@ import AdminDashboardScreen from "../screens/admin/AdminDashboardScreen";
 import AdminCropHealthScreen from "../screens/admin/AdminCropHealthScreen";
 import NotificationBell from "../components/NotificationBell";
 import AIAssistantWidget from "../components/AIAssistantWidget";
+import BrandLogo, { BrandHeaderTitle } from "../components/BrandLogo";
 
 const AuthStack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -41,7 +42,8 @@ function AuthNavigator() {
 // separately built ones — same principle as web's PortalShell.
 const SHARED_HEADER_OPTIONS = {
   headerShown: true,
-  headerTitle: "AgriRevolution",
+  title: "AgriRevolution",
+  headerTitle: () => <BrandHeaderTitle />,
   headerRight: () => <NotificationBell />,
 } as const;
 
@@ -118,7 +120,8 @@ export default function RootNavigator() {
 
   if (isLoading) {
     return (
-      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#FBF8F2" }}>
+        <BrandLogo size={88} style={{ marginBottom: 24 }} />
         <ActivityIndicator size="large" color="#B3543A" />
       </View>
     );

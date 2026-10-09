@@ -33,7 +33,7 @@ export default function Login() {
     <div className="min-h-screen flex items-center justify-center bg-brand-cream px-4">
       <div className="w-full max-w-sm">
         <div className="flex justify-center mb-5">
-          <img src={logo} alt="AgriRevolution" className="w-16 h-16 rounded-full shadow-sm" />
+          <img src={logo} alt="AgriRevolution" className="w-16 h-16 rounded-[22%] shadow-md" />
         </div>
 
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-8">

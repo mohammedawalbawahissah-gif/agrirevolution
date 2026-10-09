@@ -11,6 +11,7 @@ import {
 import { useNavigation } from "@react-navigation/native";
 import { useAuth } from "../../context/AuthContext";
 import Button from "../../components/ui/Button";
+import BrandLogo from "../../components/BrandLogo";
 import { colors, radius } from "../../theme/tokens";
 
 export default function LoginScreen() {
@@ -41,9 +42,7 @@ export default function LoginScreen() {
       behavior={Platform.OS === "ios" ? "padding" : undefined}
     >
       <View style={styles.content}>
-        <View style={styles.badge}>
-          <Text style={styles.badgeEmoji}>🌱</Text>
-        </View>
+        <BrandLogo size={72} style={styles.logo} />
         <Text style={styles.title}>AgriRevolution</Text>
         <Text style={styles.subtitle}>Sign in to your account</Text>
 
@@ -79,17 +78,7 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.brandCream },
   content: { flex: 1, justifyContent: "center", paddingHorizontal: 24 },
-  badge: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: colors.brandGreenLight,
-    alignItems: "center",
-    justifyContent: "center",
-    alignSelf: "center",
-    marginBottom: 16,
-  },
-  badgeEmoji: { fontSize: 22 },
+  logo: { alignSelf: "center", marginBottom: 16 },
   title: { fontSize: 26, fontWeight: "700", color: colors.textPrimary, textAlign: "center", letterSpacing: -0.3 },
   subtitle: { fontSize: 14, color: colors.textSecondary, textAlign: "center", marginTop: 4, marginBottom: 24 },
   input: {

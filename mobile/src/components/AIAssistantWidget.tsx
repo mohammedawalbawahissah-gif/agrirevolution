@@ -184,7 +184,7 @@ export default function AIAssistantWidget() {
           <View style={styles.panel}>
             <View style={styles.header}>
               <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                <Image source={require("../../assets/icon.png")} style={styles.headerLogo} />
+                <Image source={require("../../assets/logo.png")} style={styles.headerLogo} />
                 <Text style={styles.headerTitle}>{roleTitle}</Text>
               </View>
               <View style={{ flexDirection: "row", gap: 4 }}>
@@ -280,7 +280,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "space-between",
   },
-  headerLogo: { width: 20, height: 20, borderRadius: 10 },
+  headerLogo: { width: 24, height: 24, borderRadius: 5.4 },
   headerIcon: { fontSize: 16, color: "#fff" },
   micIcon: { fontSize: 15 },
   sendIcon: { fontSize: 14, color: "#fff" },

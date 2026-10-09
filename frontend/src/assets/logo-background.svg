@@ -1,5 +1,18 @@
-<svg width="256" height="256" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg">
-  <rect x="0" y="0" width="256" height="256" fill="#FBF8F2" />
-  <circle cx="192" cy="64" r="30" fill="#D9A441" />
-  <path d="M0 150 Q 70 110 140 145 T 256 130 V 256 H 0 Z" fill="#F5E6E1" />
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="ar-sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#C66544"/>
+      <stop offset="1" stop-color="#B3543A"/>
+    </linearGradient>
+    <linearGradient id="ar-sun" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#E8BC5E"/>
+      <stop offset="1" stop-color="#D9A441"/>
+    </linearGradient>
+    <clipPath id="ar-above"><rect x="0" y="0" width="1024" height="650"/></clipPath>
+  </defs>
+  <rect width="1024" height="1024" fill="url(#ar-sky)"/><g transform="translate(102.4 102.4) scale(0.8)"><rect x="-600" y="650" width="2224" height="850" fill="#8C4029"/>
+    <path d="M512 650 L-1123.6 1500 L-656.3 1500 Z" fill="#6E301E"/>
+    <path d="M512 650 L-189.0 1500 L278.3 1500 Z" fill="#6E301E"/>
+    <path d="M512 650 L745.7 1500 L1213.0 1500 Z" fill="#6E301E"/>
+    <path d="M512 650 L1680.3 1500 L2147.6 1500 Z" fill="#6E301E"/></g>
 </svg>
