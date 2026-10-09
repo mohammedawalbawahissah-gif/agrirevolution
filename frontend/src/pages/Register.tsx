@@ -47,7 +47,7 @@ export default function Register() {
     <div className="min-h-screen flex items-center justify-center bg-brand-cream px-4 py-12">
       <div className="w-full max-w-md bg-white rounded-xl shadow-sm border border-gray-100 p-8">
         <div className="flex justify-center mb-5">
-          <img src={logo} alt="AgriRevolution" className="w-14 h-14 rounded-full shadow-sm" />
+          <img src={logo} alt="AgriRevolution" className="w-14 h-14 rounded-[22%] shadow-md" />
         </div>
         <h1 className="text-page-title">Create your account</h1>
         <p className="text-page-subtitle mb-6">Join AgriRevolution as a farmer, dealer, or buyer</p>

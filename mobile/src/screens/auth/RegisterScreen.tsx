@@ -4,6 +4,7 @@ import { useNavigation } from "@react-navigation/native";
 import { useAuth } from "../../context/AuthContext";
 import type { UserRole } from "../../types";
 import Button from "../../components/ui/Button";
+import BrandLogo from "../../components/BrandLogo";
 import { colors, radius } from "../../theme/tokens";
 
 const ROLES: { value: UserRole; label: string }[] = [
@@ -53,6 +54,7 @@ export default function RegisterScreen() {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+      <BrandLogo size={56} style={styles.logo} />
       <Text style={styles.title}>Create your account</Text>
       <Text style={styles.subtitle}>Join AgriRevolution</Text>
 
@@ -128,6 +130,7 @@ export default function RegisterScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.brandCream },
   content: { padding: 24, paddingTop: 60, paddingBottom: 40 },
+  logo: { marginBottom: 16 },
   title: { fontSize: 24, fontWeight: "700", color: colors.textPrimary, letterSpacing: -0.3 },
   subtitle: { fontSize: 14, color: colors.textSecondary, marginTop: 4, marginBottom: 24 },
   row: { flexDirection: "row", gap: 8 },

@@ -150,7 +150,7 @@ export default function AIAssistantWidget() {
         <div className="fixed bottom-24 right-6 z-40 w-[360px] max-w-[calc(100vw-3rem)] h-[520px] max-h-[70vh] bg-white rounded-2xl shadow-2xl border border-gray-100 flex flex-col overflow-hidden">
           <div className="bg-brand-green text-white px-4 py-3 flex items-center justify-between shrink-0">
             <div className="flex items-center gap-2 min-w-0">
-              <img src={logo} alt="" className="w-5 h-5 rounded-full shrink-0" />
+              <img src={logo} alt="" className="w-6 h-6 rounded-[22%] ring-1 ring-white/40 shrink-0" />
               <p className="text-sm font-semibold truncate">{roleTitle}</p>
             </div>
             <div className="flex items-center gap-1">

@@ -51,7 +51,7 @@ export default function PortalShell({ navItems, roleLabel }: PortalShellProps) {
         }`}
       >
         <div className="px-5 py-5 border-b border-white/10 flex items-center gap-2.5">
-          <img src={logo} alt="" className="w-9 h-9 rounded-full shrink-0" />
+          <img src={logo} alt="" className="w-9 h-9 rounded-[22%] shrink-0" />
           <div className="min-w-0 flex-1">
             <h1 className="text-lg font-bold text-white tracking-tight leading-tight">AgriRevolution</h1>
             {roleLabel && (
@@ -128,6 +128,12 @@ export default function PortalShell({ navItems, roleLabel }: PortalShellProps) {
           >
             <Menu size={22} />
           </button>
+          {/* Sidebar (and its logo) is off-canvas below md, so the header
+              carries the brand mark on phone-width screens. */}
+          <div className="md:hidden flex items-center gap-2 ml-2 min-w-0">
+            <img src={logo} alt="" className="w-7 h-7 rounded-[22%] shrink-0" />
+            <span className="text-sm font-bold text-white tracking-tight truncate">AgriRevolution</span>
+          </div>
           <div className="ml-auto">
             <NotificationBell />
           </div>
